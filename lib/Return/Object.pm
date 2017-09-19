@@ -9,8 +9,9 @@ our $VERSION = '0.01';
 
 use Exporter::Shiny qw[ return_object ];
 
-{ package Return::Object::Class;
-  use parent 'Return::Object::Base';
+{
+    package Return::Object::Class;
+    use parent 'Return::Object::Base';
 }
 
 sub _generate_return_object {
@@ -21,7 +22,7 @@ sub _generate_return_object {
     my ( @pre_code, @post_code );
 
     if ( $args->{-copy} ) {
-        push @pre_code, '$hash = { %{ $hash } };'
+        push @pre_code, '$hash = { %{ $hash } };';
     }
     elsif ( $args->{-clone} ) {
         require Storable;
@@ -36,30 +37,39 @@ sub _generate_return_object {
         if ( $args->{-create} ) {
 
             ## no critic (ProhibitStringyEval)
-            my $code = qq[ { package $class ; use parent 'Return::Object::Base'; } 1; ];
-            eval( $code )
-              // do { require Carp;
-                      Carp::croak( "error generating on-the-fly class $class: $@" );
-                  };
-        } elsif ( ! $class->isa( 'Return::Object::Base' ) ) {
-            require Carp;
-            Carp::croak( qq[class ($class) is not a subclass of Return::Object::Base\n] );
+            my $code
+              = qq[ { package $class ; use parent 'Return::Object::Base'; } 1; ];
+            eval( $code ) // do {
+                require Carp;
+                Carp::croak( "error generating on-the-fly class $class: $@" );
+            };
         }
-
+        elsif ( !$class->isa( 'Return::Object::Base' ) ) {
+            require Carp;
+            Carp::croak(
+                qq[class ($class) is not a subclass of Return::Object::Base\n]
+            );
+        }
     }
 
-    my $code =  join( "\n",
-                      q[sub {],
-                      q[my $hash = shift;],
-                      @pre_code,
-                      qq[my \$obj = bless \$hash, '$class';],
-                      @post_code,
-                      q[return $obj;],
-                      q[}]
-                      );
+    #<<< no tidy
+    my $code =
+      join( "\n",
+	    q[sub {],
+	    q[my $hash = shift;],
+	    @pre_code,
+	    qq[my \$obj = bless \$hash, '$class';],
+	    @post_code,
+	    q[return $obj;],
+	    q[}],
+	  );
+    #>>>
 
     ## no critic (ProhibitStringyEval)
-    return eval( $code ) // do { require Carp; Carp::croak( "error generating return_object subroutine: $@" ) };
+    return eval( $code ) // do {
+        require Carp;
+        Carp::croak( "error generating return_object subroutine: $@" );
+    };
 }
 
 
