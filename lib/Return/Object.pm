@@ -2,8 +2,6 @@ package Return::Object;
 
 # ABSTRACT: on-the-fly generation of results objects
 
-use B qw[ perlstring ];
-
 use strict;
 use warnings;
 
@@ -27,23 +25,27 @@ sub _generate_return_object {
     }
     elsif ( $args->{-clone} ) {
         require Storable;
-        push @pre_code, '$hash = Storable::dclone %{ $hash };';
-    }
-
-    if ( $args->{-lock} ) {
-        require Hash::Util;
-        push @post_code, 'Hash::Util::lock_hash( $obj);'
+        push @pre_code, '$hash = Storable::dclone $hash;';
     }
 
     my $class = "${me}::Class";
     if ( defined $args->{-class} ) {
 
         $class = $args->{-class};
-        my $code = qq[ { package $class ; use parent 'Return::Object::Base'; } 1; ];
-        eval( $code )
-	  // do { require Carp;
-		  Carp::croak( "error generating on-the-fly class $class: $@" );
-		};
+
+        if ( $args->{-create} ) {
+
+            ## no critic (ProhibitStringyEval)
+            my $code = qq[ { package $class ; use parent 'Return::Object::Base'; } 1; ];
+            eval( $code )
+              // do { require Carp;
+                      Carp::croak( "error generating on-the-fly class $class: $@" );
+                  };
+        } elsif ( ! $class->isa( 'Return::Object::Base' ) ) {
+            require Carp;
+            Carp::croak( qq[class ($class) is not a subclass of Return::Object::Base\n] );
+        }
+
     }
 
     my $code =  join( "\n",
@@ -56,6 +58,7 @@ sub _generate_return_object {
                       q[}]
                       );
 
+    ## no critic (ProhibitStringyEval)
     return eval( $code ) // do { require Carp; Carp::croak( "error generating return_object subroutine: $@" ) };
 }
 
@@ -69,7 +72,7 @@ __END__
 
 =head1 SYNOPSIS
 
-  
+
   use Return::Object 'return_object';
 
   sub foo {
@@ -84,7 +87,7 @@ __END__
 
 This module provides the L</return_object> subroutine, which
 makes it easier to encapsulate values returned from a subroutine
-as objects. 
+as objects.
 
 For hash results, the keys are available as methods, which ensures
 that mistyped keys do not result in auto-vivified elements in the hash.
@@ -108,7 +111,7 @@ Hash elements may be added or deleted directly from the underlying hash
 =item *
 
 Hash keys are available as object methods.  Keys which do not have
-valid method names are translated (see L</Key Translation)).
+valid method names are translated (see L</Key Translation>).
 
 =back
 
@@ -123,7 +126,7 @@ Hash elements may be added or deleted directly from the underlying hash
 =item *
 
 Hash keys are available as object methods.  Keys which do not have
-valid method names are translated (see L</Key Translation)).
+valid method names are translated (see L</Key Translation>).
 
 
 
@@ -132,7 +135,7 @@ valid method names are translated (see L</Key Translation)).
 
 =head3 Hashes
 
-Hash return objects may have the 
+Hash return objects may have the
 
 
 

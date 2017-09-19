@@ -22,7 +22,7 @@ version 0.01
 
 This module provides the ["return\_object"](#return_object) subroutine, which
 makes it easier to encapsulate values returned from a subroutine
-as objects. 
+as objects.
 
 For hash results, the keys are available as methods, which ensures
 that mistyped keys do not result in auto-vivified elements in the hash.
@@ -38,17 +38,17 @@ has the following characteristics:
 
 - Hash elements may be added or deleted directly from the underlying hash
 - Hash keys are available as object methods.  Keys which do not have
-valid method names are translated (see ["Key Translation))."](#key-translation)
+valid method names are translated (see ["Key Translation"](#key-translation)).
 
 ### For Arrays
 
 - Hash elements may be added or deleted directly from the underlying hash
 - Hash keys are available as object methods.  Keys which do not have
-valid method names are translated (see ["Key Translation))."](#key-translation)
+valid method names are translated (see ["Key Translation"](#key-translation)).
 
 ### Hashes
 
-Hash return objects may have the 
+Hash return objects may have the
 
 # BUGS AND LIMITATIONS
 
@@ -74,15 +74,3 @@ This software is Copyright (c) 2017 by Smithsonian Astrophysical Observatory.
 This is free software, licensed under:
 
     The GNU General Public License, Version 3, June 2007
-
-# POD ERRORS
-
-Hey! **The above document had some coding errors, which are explained below:**
-
-- Around line 47:
-
-    Unterminated L<...> sequence
-
-- Around line 62:
-
-    Unterminated L<...> sequence

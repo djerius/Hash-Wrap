@@ -2,55 +2,180 @@
 
 use Test2::V0;
 
-use Return::Object 'return_object';
 use Scalar::Util 'blessed';
 
 use strict;
 use warnings;
 
-subtest 'basic' => sub {
+use Return::Object 'return_object';
 
-    my $obj = return_object( {
-        a => 1,
-        b => 2
-    } );
+subtest 'default' => sub {
 
-    ok( $obj->a, 1, 'retrieve value' );
-    ok( $obj->b, 2, 'retrieve another value' );
+    my %hash = ( a => 1, b => 2 );
+
+    my $obj = return_object( \%hash );
+
+    is( $obj->a, 1, 'retrieve value' );
+    is( $obj->b, 2, 'retrieve another value' );
+
+    $hash{a} = 2;
+    is( $obj->a, 2, 'object scalar not independent of hash' );
+
 
     like( dies { $obj->c }, qr/locate object method/, 'unknown attribute' );
 
     $obj->{c} = 3;
-    ok( $obj->c, 3, 'retrieve value added through hash' );
+    is( $obj->c, 3, 'retrieve value added through hash' );
 
     delete $obj->{c};
-    like( dies { $obj->c }, qr/locate object method/, 'retrieve deleted attribute' );
+    like(
+        dies { $obj->c },
+        qr/locate object method/,
+        'retrieve deleted attribute'
+    );
+
+
+    $obj->a( 22 );
+    is( $obj->a,  22, 'setter' );
+    is( $hash{a}, 22, 'setter reflected in hash' );
+
+};
+
+use Return::Object return_object => {
+    -as   => 'return_copied',
+    -copy => 1,
+};
+
+
+subtest 'copied' => sub {
+
+    my %hash = ( a => 1, b => 2, c => [9] );
+
+    my $obj = return_copied( \%hash );
+
+    is( $obj->a, 1, 'retrieve value' );
+    is( $obj->b, 2, 'retrieve another value' );
+    is( $obj->c, [9], 'retrieve another value' );
+
+    $hash{a} = 2;
+    is( $obj->a, 1, 'object scalar independent of hash' );
+
+
+    $hash{c}->[0] = 10;
+    is( $obj->c, [10], 'object arrayref contents not independent of hash' );
+
+    $obj->a( 22 );
+    is( $obj->a, 22, 'setter' );
+    isnt( $hash{a}, 22, 'setter not reflected in hash' )
+      or note qq[\$hash = $hash{a} (!22 ?)];
+
+};
+
+use Return::Object return_object => {
+    -as    => 'return_cloned',
+    -clone => 1,
+};
+
+
+subtest 'cloned' => sub {
+
+    my %hash = ( a => 1, b => 2, c => [9] );
+
+    my $obj = return_cloned( \%hash );
+
+    is( $obj->a, 1, 'retrieve value' );
+    is( $obj->b, 2, 'retrieve another value' );
+    is( $obj->c, [9], 'retrieve another value' );
+
+    $hash{a} = 2;
+    is( $obj->a, 1, 'object scalar independent of hash' );
+
+    $hash{c} = [10];
+    is( $obj->c, [9], 'object arrayref contents independent of hash' );
 
 };
 
 
-#{ package Return::Object::ClassA ; use parent 'Return::Object::Base'; };
-use Return::Object  'return_object', { -as => 'return_A', -class => 'Return::Object::ClassA' };
+use Return::Object 'return_object',
+  {
+    -as     => 'return_created_class',
+    -class  => 'My::CreatedClass',
+    -create => 1,
+  };
 
-# check that caching works
-subtest 'cache' => sub {
+# check that caching and alternative classing with creation works
+subtest 'cache + create class' => sub {
 
-    my $obj = return_A({ a => 1 } );
+    my $obj = return_created_class( { a => 1 } );
 
     my $class = blessed $obj;
 
+    isa_ok( $obj, ['My::CreatedClass'], 'created alternative class' );
+
     no strict 'refs';
 
-    $DB::single=1;
+    ok( !defined( *{"${class}::a"}{CODE} ), "no accessor for 'a'" );
 
-    ok( !defined( *{ "${class}::a" }{CODE}), "no accessor for 'a'" );
+    is( $obj->a, 1, "retrieve 'a'" );
 
-    ok( $obj->a, 1, "retrieve 'a'" );
+    my $accessor = *{"${class}::a"}{CODE};
 
-    my $accessor = *{ "${class}::a" }{CODE};
+    is( $obj->can( 'a' ), $accessor, "can() returns cached accessor" );
 
-    is( $obj->can('a'), $accessor, "can() returns cached accessor" );
+};
 
+
+{
+    package My::ExistingClass;
+    use parent 'Return::Object::Base';
+}
+
+use Return::Object 'return_object',
+  {
+    -as    => 'return_existing_class',
+    -class => 'My::ExistingClass',
+  };
+
+# check that caching and alternative classing with creation works
+subtest 'cache + existing class' => sub {
+
+    my $obj = return_existing_class( { a => 1 } );
+
+    my $class = blessed $obj;
+
+    isa_ok( $obj, ['My::ExistingClass'], 'existing alternative class' );
+
+    no strict 'refs';
+
+    ok( !defined( *{"${class}::a"}{CODE} ), "no accessor for 'a'" );
+
+    is( $obj->a, 1, "retrieve 'a'" );
+
+    my $accessor = *{"${class}::a"}{CODE};
+
+    is( $obj->can( 'a' ), $accessor, "can() returns cached accessor" );
+
+};
+
+{
+    package My::ExistingClassNoBase;
+}
+
+# check that caching and alternative classing with creation works
+subtest 'existing class, bad base' => sub {
+
+    like(
+        dies {
+            Return::Object->import(
+                'return_object',
+                {
+                    -as    => 'return_existing_class_nobase',
+                    -class => 'My::ExistingClassNoBase',
+                } )
+        },
+        qr/not a subclass/,
+        'requires parent class'
+    );
 
 };
 
