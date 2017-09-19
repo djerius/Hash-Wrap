@@ -1,0 +1,88 @@
+# NAME
+
+Return::Object - on-the-fly generation of results objects
+
+# VERSION
+
+version 0.01
+
+# SYNOPSIS
+
+    use Return::Object 'return_object';
+
+    sub foo {
+
+     ...
+
+      return_object \%hash_result;
+
+    }
+
+# DESCRIPTION
+
+This module provides the ["return\_object"](#return_object) subroutine, which
+makes it easier to encapsulate values returned from a subroutine
+as objects. 
+
+For hash results, the keys are available as methods, which ensures
+that mistyped keys do not result in auto-vivified elements in the hash.
+
+Result objects can also automatically be made immutable.
+
+## Object construction
+
+By default `Object::Return` generates a `return_object` subroutine which
+has the following characteristics:
+
+### For Hashes
+
+- Hash elements may be added or deleted directly from the underlying hash
+- Hash keys are available as object methods.  Keys which do not have
+valid method names are translated (see ["Key Translation))."](#key-translation)
+
+### For Arrays
+
+- Hash elements may be added or deleted directly from the underlying hash
+- Hash keys are available as object methods.  Keys which do not have
+valid method names are translated (see ["Key Translation))."](#key-translation)
+
+### Hashes
+
+Hash return objects may have the 
+
+# BUGS AND LIMITATIONS
+
+You can make new bug reports, and view existing ones, through the
+web interface at [https://rt.cpan.org/Public/Dist/Display.html?Name=Return-Object](https://rt.cpan.org/Public/Dist/Display.html?Name=Return-Object).
+
+# SEE ALSO
+
+Please see those modules/websites for more information related to this module.
+
+- [Object::Result](https://metacpan.org/pod/Object::Result)
+- [Hash::AsObject](https://metacpan.org/pod/Hash::AsObject)
+- [Data::AsObject](https://metacpan.org/pod/Data::AsObject)
+
+# AUTHOR
+
+Diab Jerius <djerius@cpan.org>
+
+# COPYRIGHT AND LICENSE
+
+This software is Copyright (c) 2017 by Smithsonian Astrophysical Observatory.
+
+This is free software, licensed under:
+
+    The GNU General Public License, Version 3, June 2007
+
+# POD ERRORS
+
+Hey! **The above document had some coding errors, which are explained below:**
+
+- Around line 47:
+
+    Unterminated L<...> sequence
+
+- Around line 62:
+
+    Unterminated L<...> sequence
