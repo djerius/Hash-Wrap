@@ -9,6 +9,9 @@ our $VERSION = '0.01';
 
 use Exporter::Shiny qw[ return_object ];
 
+our @EXPORT = qw[ return_object ];
+
+
 {
     package Return::Object::Class;
     use parent 'Return::Object::Base';
@@ -90,7 +93,7 @@ __END__
 =head1 SYNOPSIS
 
 
-  use Return::Object 'return_object';
+  use Return::Object;
 
   sub foo {
 

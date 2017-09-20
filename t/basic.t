@@ -7,7 +7,7 @@ use Scalar::Util 'blessed';
 use strict;
 use warnings;
 
-use Return::Object 'return_object';
+use Return::Object;
 
 subtest 'default' => sub {
 
