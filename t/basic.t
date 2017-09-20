@@ -201,7 +201,6 @@ subtest 'existing class, constructor' => sub {
 
     ok( lives { $obj = return_existing_class_with_constructor( { a => 1 } ) }, "create object" ) or note $@;
 
-    $DB::single=1;
     my $new;
     ok( lives { $new = $obj->new({}) }, 'call new method' ) or note $@;
 
