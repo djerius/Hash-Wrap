@@ -13,7 +13,7 @@ subtest 'default' => sub {
 
     my %hash = ( a => 1, b => 2 );
 
-    my $obj = return_object( \%hash );
+    my $obj = return_object \%hash ;
 
     is( $obj->a, 1, 'retrieve value' );
     is( $obj->b, 2, 'retrieve another value' );
@@ -51,7 +51,7 @@ subtest 'copied' => sub {
 
     my %hash = ( a => 1, b => 2, c => [9] );
 
-    my $obj = return_copied( \%hash );
+    my $obj = return_copied \%hash ;
 
     is( $obj->a, 1, 'retrieve value' );
     is( $obj->b, 2, 'retrieve another value' );
@@ -81,7 +81,7 @@ subtest 'cloned' => sub {
 
     my %hash = ( a => 1, b => 2, c => [9] );
 
-    my $obj = return_cloned( \%hash );
+    my $obj = return_cloned \%hash;
 
     is( $obj->a, 1, 'retrieve value' );
     is( $obj->b, 2, 'retrieve another value' );
@@ -106,7 +106,7 @@ use Return::Object 'return_object',
 # check that caching and alternative classing with creation works
 subtest 'cache + create class' => sub {
 
-    my $obj = return_created_class( { a => 1 } );
+    my $obj = return_created_class { a => 1 };
 
     my $class = blessed $obj;
 
@@ -139,7 +139,7 @@ use Return::Object 'return_object',
 # check that caching and alternative classing with creation works
 subtest 'cache + existing class' => sub {
 
-    my $obj = return_existing_class( { a => 1 } );
+    my $obj = return_existing_class { a => 1 };
 
     my $class = blessed $obj;
 
