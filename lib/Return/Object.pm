@@ -39,7 +39,7 @@ sub _generate_return_object {
             ## no critic (ProhibitStringyEval)
             my $code
               = qq[ { package $class ; use parent 'Return::Object::Base'; } 1; ];
-            eval( $code ) // do {
+            eval( $code ) or do {
                 require Carp;
                 Carp::croak( "error generating on-the-fly class $class: $@" );
             };
@@ -66,7 +66,7 @@ sub _generate_return_object {
     #>>>
 
     ## no critic (ProhibitStringyEval)
-    return eval( $code ) // do {
+    return eval( $code ) || do {
         require Carp;
         Carp::croak( "error generating return_object subroutine: $@" );
     };
