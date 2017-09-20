@@ -13,7 +13,7 @@ subtest 'default' => sub {
 
     my %hash = ( a => 1, b => 2 );
 
-    my $obj = return_object \%hash ;
+    my $obj = return_object \%hash;
 
     is( $obj->a, 1, 'retrieve value' );
     is( $obj->b, 2, 'retrieve another value' );
@@ -51,7 +51,7 @@ subtest 'copied' => sub {
 
     my %hash = ( a => 1, b => 2, c => [9] );
 
-    my $obj = return_copied \%hash ;
+    my $obj = return_copied \%hash;
 
     is( $obj->a, 1, 'retrieve value' );
     is( $obj->b, 2, 'retrieve another value' );
@@ -183,10 +183,11 @@ subtest 'existing class, bad base' => sub {
     package My::ExistingClassWithConstructor;
     use parent 'Return::Object::Base';
 
-    sub new { my $class = shift;
-              $class = ref $class || $class;
-              bless shift, $class;
-           }
+    sub new {
+        my $class = shift;
+        $class = ref $class || $class;
+        bless shift, $class;
+    }
 }
 
 use Return::Object return_object => {
@@ -198,13 +199,18 @@ use Return::Object return_object => {
 subtest 'existing class, constructor' => sub {
 
     my $obj;
-
-    ok( lives { $obj = return_existing_class_with_constructor( { a => 1 } ) }, "create object" ) or note $@;
+    ok( lives { $obj = return_existing_class_with_constructor( { a => 1 } ) },
+        "create object" )
+      or note $@;
 
     my $new;
-    ok( lives { $new = $obj->new({}) }, 'call new method' ) or note $@;
+    ok( lives { $new = $obj->new( {} ) }, 'call new method' ) or note $@;
 
-    isa_ok( $new, ['My::ExistingClassWithConstructor'], 'new returns new object' );
+    isa_ok(
+        $new,
+        ['My::ExistingClassWithConstructor'],
+        'new returns new object'
+    );
 
 };
 
