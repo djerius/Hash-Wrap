@@ -214,4 +214,30 @@ subtest 'existing class, constructor' => sub {
 
 };
 
+use Return::Object return_object => {
+    -as     => 'return_existing_class_with_clone_sub',
+    -class  => 'My::ExistingClassWithCloneSub',
+    -create => 1,
+    -clone  => sub {
+        my %new = %{ shift() };
+        $new{c} = 5;
+        \%new;
+    },
+};
+
+# clone coderef
+subtest 'existing class, clone sub' => sub {
+
+    my $obj;
+    ok( lives { $obj = return_existing_class_with_clone_sub( { a => 1 } ) },
+        "create object" )
+      or note $@;
+
+    my $c;
+    ok( lives { $c = $obj->c }, "access new attribute added by clone sub" )
+      or note $@;
+
+    is( $c, 5, "new attribute value" );
+};
+
 done_testing;

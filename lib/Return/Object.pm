@@ -22,14 +22,24 @@ sub _generate_return_object {
     my ( $me ) = shift;
     my ( $name, $args, $global ) = @_;
 
+    # closure for user provided clone sub
+    my $clone;
+
     my ( @pre_code, @post_code );
 
     if ( $args->{-copy} ) {
         push @pre_code, '$hash = { %{ $hash } };';
     }
-    elsif ( $args->{-clone} ) {
-        require Storable;
-        push @pre_code, '$hash = Storable::dclone $hash;';
+    elsif ( exists $args->{-clone} ) {
+
+        if ( 'CODE' eq ref $args->{-clone} ) {
+            $clone = $args->{-clone};
+            push @pre_code, '$hash = $clone->($hash);';
+        }
+        else {
+            require Storable;
+            push @pre_code, '$hash = Storable::dclone $hash;';
+        }
     }
 
     my $class = "${me}::Class";
@@ -169,11 +179,14 @@ will be created.
 If true, the object will store the data in a I<shallow> copy of the
 hash. By default, the object uses the hash directly.
 
-=item C<-clone> => I<boolean>
+=item C<-clone> => I<boolean> | I<coderef>
 
-If true, the object will store the data in a deep copy of the hash,
-made with L<Storeable/dclone>. By default, the object uses the hash
-directly.
+Store the data in a deep copy of the hash. if I<true>, L<Storable/dclone>
+is used. If a coderef, it will be called as
+
+   $clone = coderef->( $hash )
+
+By default, the object uses the hash directly.
 
 
 =back

@@ -80,11 +80,14 @@ The following options are available to customize the constructor.
     If true, the object will store the data in a _shallow_ copy of the
     hash. By default, the object uses the hash directly.
 
-- `-clone` => _boolean_
+- `-clone` => _boolean_ | _coderef_
 
-    If true, the object will store the data in a deep copy of the hash,
-    made with ["dclone" in Storeable](https://metacpan.org/pod/Storeable#dclone). By default, the object uses the hash
-    directly.
+    Store the data in a deep copy of the hash. if _true_, ["dclone" in Storable](https://metacpan.org/pod/Storable#dclone)
+    is used. If a coderef, it will be called as
+
+        $clone = coderef->( $hash )
+
+    By default, the object uses the hash directly.
 
 ## Object Classes
 
