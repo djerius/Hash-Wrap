@@ -52,17 +52,24 @@ sub _generate_return_object {
         }
     }
 
+    my $construct = 'my $obj = '
+      . (
+        $class->can( 'new' )
+        ? qq[$class->new(\$hash);]
+        : qq[bless \$hash, '$class';]
+      );
+
     #<<< no tidy
     my $code =
       join( "\n",
-	    q[sub {],
-	    q[my $hash = shift;],
-	    @pre_code,
-	    qq[my \$obj = bless \$hash, '$class';],
-	    @post_code,
-	    q[return $obj;],
-	    q[}],
-	  );
+            q[sub ($) {],
+            q[my $hash = shift;],
+            @pre_code,
+            $construct,
+            @post_code,
+            q[return $obj;],
+            q[}],
+          );
     #>>>
 
     ## no critic (ProhibitStringyEval)

@@ -179,4 +179,34 @@ subtest 'existing class, bad base' => sub {
 
 };
 
+{
+    package My::ExistingClassWithConstructor;
+    use parent 'Return::Object::Base';
+
+    sub new { my $class = shift;
+              $class = ref $class || $class;
+              bless shift, $class;
+           }
+}
+
+use Return::Object return_object => {
+    -as    => 'return_existing_class_with_constructor',
+    -class => 'My::ExistingClassWithConstructor',
+};
+
+# check that caching and alternative classing with creation works
+subtest 'existing class, constructor' => sub {
+
+    my $obj;
+
+    ok( lives { $obj = return_existing_class_with_constructor( { a => 1 } ) }, "create object" ) or note $@;
+
+    $DB::single=1;
+    my $new;
+    ok( lives { $new = $obj->new({}) }, 'call new method' ) or note $@;
+
+    isa_ok( $new, ['My::ExistingClassWithConstructor'], 'new returns new object' );
+
+};
+
 done_testing;
