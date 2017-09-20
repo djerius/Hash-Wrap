@@ -34,6 +34,13 @@ changes will be reflected in the object's methods.  To prevent this,
 consider using the lock routines in [Hash::Util](https://metacpan.org/pod/Hash::Util) on the object after
 creation.
 
+The object's methods act as both accessors and setters, e.g.
+
+    $obj = return_object( { a => 1 } );
+    print $obj->a; # 1
+    $obj->a( 3 );
+    print $obj->a; # 3
+
 Only hash keys which are legal method names will be accessible via
 object methods.
 
