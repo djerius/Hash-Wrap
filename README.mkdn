@@ -18,6 +18,12 @@ version 0.01
     print $result->a;  # prints
     print $result->b;  # throws
 
+    # create two constructors, <cloned> and <copied> with different
+    # behaviors. does not import C<return_object>
+    use Return::Object
+      { -as => 'cloned', clone => 1},
+      { -as => 'copied', copy => 1 };
+
 # DESCRIPTION
 
 This module provides routines which encapsulate a hash as an object.
@@ -52,14 +58,12 @@ which, given a hashref, blesses it directly into the
 
 The constructor may be customized to change which class the object is
 instantiated from, and how it is constructed from the data.
-`Return::Object` uses [Exporter::Tiny](https://metacpan.org/pod/Exporter::Tiny) to perform the customization.
 For example,
 
     use Return::Object
-      return_object => { -as => 'return_cloned_object',
-                         -clone => 1 };
+      { -as => 'return_cloned_object', -clone => 1 };
 
-will create a version of `return_object` which clones the passed hash
+will create a constructor> which clones the passed hash
 and is imported as `return_cloned_object`.  To import it under
 the original name, `return_object`, leave out the `-as` option.
 
@@ -67,8 +71,8 @@ The following options are available to customize the constructor.
 
 - `-as` => _subroutine name_
 
-    This is optional, and imports the customized version of
-    `return_object` with the given name.
+    This is optional, and imports the constructor with the given name. If
+    not specified, it defaults to `return_object`.
 
 - `-class` => _class name_
 
@@ -120,18 +124,55 @@ hashref which it should bless as the actual object.  For example:
 `can` method, and an `AUTOLOAD` method.  They will mask hash
 keys with the same names.
 
+# SEE ALSO
+
+Here's a compaison of this module and others on CPAN.
+
+- [Return::Object](https://metacpan.org/pod/Return::Object) (this module)
+    - Light dependency chain.
+    - only applies object paradigm to top level hash
+    - accessing a non-existing element via an accessor throws
+    - can use custom package
+    - can copy/clone existing hash. clone is customizable
+- [Object::Result](https://metacpan.org/pod/Object::Result)
+
+    As you might expect from a
+    [DCONWAY](https://metacpan.org/author/DCONWAY) module, this does just
+    about everything you'd like.  It has a very heavy set of dependencies.
+
+- [Hash::AsObject](https://metacpan.org/pod/Hash::AsObject)
+    - no out-of-core dependencies
+    - applies object paradigm recursively
+    - accessing a non-existing element via an accessor creates it
+- [Data::AsObject](https://metacpan.org/pod/Data::AsObject)
+    - moderate dependency chain (no XS?)
+    - applies object paradigm recursively
+    - accessing a non-existing element throws
+- [Class::Hash](https://metacpan.org/pod/Class::Hash)
+    - no out-of-core dependencies
+    - only applies object paradigm to top level hash
+    - can add generic accessor, mutator, and element management methods
+    - accessing a non-existing element via an accessor creates it (not documented, but code implies it)
+    - `can()` doesn't work
+- [Hash::Inflator](https://metacpan.org/pod/Hash::Inflator)
+    - accessing a non-existing element via an accessor returns undef
+    - applies object paradigm recursively
+- [Hash::AutoHash](https://metacpan.org/pod/Hash::AutoHash)
+    - moderate dependency chain.  Requires XS, tied hashes
+    - applies object paradigm recursively
+    - accessing a non-existing element via an accessor creates it
+- [Hash::Objectify](https://metacpan.org/pod/Hash::Objectify)
+    - only applies object paradigm to top level hash
+    - light dependency chain.  Requires XS.
+    - accessing a non-existing element throws, but if an existing
+    element is accessed, then deleted, accessor returns undef rather than
+    throwing
+    - can use custom package
+
 # BUGS AND LIMITATIONS
 
 You can make new bug reports, and view existing ones, through the
 web interface at [https://rt.cpan.org/Public/Dist/Display.html?Name=Return-Object](https://rt.cpan.org/Public/Dist/Display.html?Name=Return-Object).
-
-# SEE ALSO
-
-Please see those modules/websites for more information related to this module.
-
-- [Object::Result](https://metacpan.org/pod/Object::Result)
-- [Hash::AsObject](https://metacpan.org/pod/Hash::AsObject)
-- [Data::AsObject](https://metacpan.org/pod/Data::AsObject)
 
 # AUTHOR
 

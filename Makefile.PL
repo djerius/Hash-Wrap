@@ -18,7 +18,6 @@ my %WriteMakefileArgs = (
   "NAME" => "Return::Object",
   "PREREQ_PM" => {
     "Carp" => 0,
-    "Exporter::Shiny" => 0,
     "Hash::Util" => 0,
     "Scalar::Util" => 0,
     "Storable" => 0,
@@ -43,7 +42,6 @@ my %WriteMakefileArgs = (
 
 my %FallbackPrereqs = (
   "Carp" => 0,
-  "Exporter::Shiny" => 0,
   "ExtUtils::MakeMaker" => 0,
   "File::Spec" => 0,
   "Hash::Util" => 0,

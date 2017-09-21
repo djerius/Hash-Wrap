@@ -1,5 +1,4 @@
 requires "Carp" => "0";
-requires "Exporter::Shiny" => "0";
 requires "Hash::Util" => "0";
 requires "Scalar::Util" => "0";
 requires "Storable" => "0";
@@ -70,7 +69,6 @@ on 'develop' => sub {
   requires "Dist::Zilla::PluginBundle::Filter" => "0";
   requires "Pod::Coverage::TrustPod" => "0";
   requires "Pod::Weaver::Section::BugsAndLimitations" => "0";
-  requires "Pod::Weaver::Section::SeeAlso" => "0";
   requires "Pod::Wordlist" => "0";
   requires "Software::License::GPL_3" => "0";
   requires "Test::CPAN::Changes" => "0.19";
