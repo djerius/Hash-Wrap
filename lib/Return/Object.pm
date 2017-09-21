@@ -290,6 +290,110 @@ keys with the same names.
 
 =head1 SEE ALSO
 
-Object::Result
-Hash::AsObject
-Data::AsObject
+Here's a compaison of this module and others on CPAN.
+
+
+=over
+
+=item L<Return::Object> (this module)
+
+=over
+
+=item * Light dependency chain.
+
+=item * only applies object paradigm to top level hash
+
+=item * accessing a non-existing element via an accessor throws
+
+=item * can use custom package
+
+=item * can copy/clone existing hash. clone is customizable
+
+=back
+
+
+=item L<Object::Result>
+
+As you might expect from a
+L<DCONWAY|https://metacpan.org/author/DCONWAY> module, this does just
+about everything you'd like.  It has a very heavy set of dependencies.
+
+=item L<Hash::AsObject>
+
+=over
+
+=item * no out-of-core dependencies
+
+=item * applies object paradigm recursively
+
+=item * accessing a non-existing element via an accessor creates it
+
+=back
+
+=item L<Data::AsObject>
+
+=over
+
+=item * moderate dependency chain (no XS?)
+
+=item * applies object paradigm recursively
+
+=item * accessing a non-existing element throws
+
+=back
+
+=item L<Class::Hash>
+
+=over
+
+=item * no out-of-core dependencies
+
+=item * only applies object paradigm to top level hash
+
+=item * can add generic accessor, mutator, and element management methods
+
+=item * accessing a non-existing element via an accessor creates it (not documented, but code implies it)
+
+=item * C<can()> doesn't work
+
+=back
+
+=item L<Hash::Inflator>
+
+=over
+
+=item * accessing a non-existing element via an accessor returns undef
+
+=item * applies object paradigm recursively
+
+=back
+
+=item L<Hash::AutoHash>
+
+=over
+
+=item * moderate dependency chain.  Requires XS, tied hashes
+
+=item * applies object paradigm recursively
+
+=item * accessing a non-existing element via an accessor creates it
+
+=back
+
+=item L<Hash::Objectify>
+
+=over
+
+=item * only applies object paradigm to top level hash
+
+=item * light dependency chain.  Requires XS.
+
+=item * accessing a non-existing element throws, but if an existing
+element is accessed, then deleted, accessor returns undef rather than
+throwing
+
+=item * can use custom package
+
+=back
+
+=back
