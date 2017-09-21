@@ -82,7 +82,7 @@ sub _generate_return_object {
         delete $args->{-clone};
     }
 
-    my $class = "${me}::Class";
+    my $class = 'Return::Object::Class';
     if ( defined $args->{-class} ) {
 
         $class = $args->{-class};
