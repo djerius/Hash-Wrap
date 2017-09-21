@@ -4,9 +4,6 @@ use Test2::V0;
 
 use Scalar::Util 'blessed';
 
-use strict;
-use warnings;
-
 use Return::Object;
 
 subtest 'default' => sub {
@@ -41,7 +38,7 @@ subtest 'default' => sub {
 
 };
 
-use Return::Object return_object => {
+use Return::Object {
     -as   => 'return_copied',
     -copy => 1,
 };
@@ -71,7 +68,7 @@ subtest 'copied' => sub {
 
 };
 
-use Return::Object return_object => {
+use Return::Object {
     -as    => 'return_cloned',
     -clone => 1,
 };
@@ -96,7 +93,7 @@ subtest 'cloned' => sub {
 };
 
 
-use Return::Object 'return_object',
+use Return::Object 
   {
     -as     => 'return_created_class',
     -class  => 'My::CreatedClass',
@@ -130,7 +127,7 @@ subtest 'cache + create class' => sub {
     use parent 'Return::Object::Base';
 }
 
-use Return::Object 'return_object',
+use Return::Object
   {
     -as    => 'return_existing_class',
     -class => 'My::ExistingClass',
@@ -167,7 +164,6 @@ subtest 'existing class, bad base' => sub {
     like(
         dies {
             Return::Object->import(
-                'return_object',
                 {
                     -as    => 'return_existing_class_nobase',
                     -class => 'My::ExistingClassNoBase',
@@ -190,7 +186,7 @@ subtest 'existing class, bad base' => sub {
     }
 }
 
-use Return::Object return_object => {
+use Return::Object {
     -as    => 'return_existing_class_with_constructor',
     -class => 'My::ExistingClassWithConstructor',
 };
@@ -214,7 +210,7 @@ subtest 'existing class, constructor' => sub {
 
 };
 
-use Return::Object return_object => {
+use Return::Object {
     -as     => 'return_existing_class_with_clone_sub',
     -class  => 'My::ExistingClassWithCloneSub',
     -create => 1,

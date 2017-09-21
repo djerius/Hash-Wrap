@@ -7,27 +7,65 @@ use warnings;
 
 our $VERSION = '0.01';
 
-use Exporter::Shiny qw[ return_object ];
-
 our @EXPORT = qw[ return_object ];
-
 
 {
     package Return::Object::Class;
     use parent 'Return::Object::Base';
 }
 
+sub import {
+
+    my ( $me ) = shift;
+    my $caller = caller;
+
+    my @imports = @_;
+
+    push @imports, @EXPORT unless @imports;
+
+    for my $args ( @imports ) {
+
+        if ( ! ref $args ) {
+            require Carp;
+            Carp::croak( "$args is not exported by ", __PACKAGE__, "\n" )
+              unless grep { /$args/ } @EXPORT;
+
+            $args = { -as => $args };
+        }
+
+        elsif ( 'HASH' ne ref $args ) {
+            require Carp;
+            Carp::croak( "argument to ", __PACKAGE__, "::import must be string or hash\n")
+              unless grep { /$args/ } @EXPORT;
+        }
+
+        my $name = exists $args->{-as} ? delete $args->{-as} : 'return_object';
+
+        my $sub = _generate_return_object( $me, $name, { %$args } );
+
+        no strict 'refs';
+        *{"$caller\::$name"} = $sub;
+    }
+
+}
+
+
 sub _generate_return_object {
 
     my ( $me ) = shift;
-    my ( $name, $args, $global ) = @_;
+    my ( $name, $args ) = @_;
 
     # closure for user provided clone sub
     my $clone;
 
     my ( @pre_code, @post_code );
 
-    if ( $args->{-copy} ) {
+    if ( exists $args->{-copy} && exists $args->{-clone} ) {
+        require Carp;
+        Carp::croak( "cannot mix -copy and -clone\n" );
+    }
+
+    if ( delete $args->{-copy} ) {
         push @pre_code, '$hash = { %{ $hash } };';
     }
     elsif ( exists $args->{-clone} ) {
@@ -40,6 +78,8 @@ sub _generate_return_object {
             require Storable;
             push @pre_code, '$hash = Storable::dclone $hash;';
         }
+
+        delete $args->{-clone};
     }
 
     my $class = "${me}::Class";
@@ -56,6 +96,8 @@ sub _generate_return_object {
                 require Carp;
                 Carp::croak( "error generating on-the-fly class $class: $@" );
             };
+
+            delete $args->{-create};
         }
         elsif ( !$class->isa( 'Return::Object::Base' ) ) {
             require Carp;
@@ -63,6 +105,8 @@ sub _generate_return_object {
                 qq[class ($class) is not a subclass of Return::Object::Base\n]
             );
         }
+
+        delete $args->{-class};
     }
 
     my $construct = 'my $obj = '
@@ -77,6 +121,7 @@ sub _generate_return_object {
       join( "\n",
             q[sub ($) {],
             q[my $hash = shift;],
+            qq[if ( ! 'HASH' eq ref \$hash ) { require Carp; croak( "argument to $name must be a hashref\n" ) }],
             @pre_code,
             $construct,
             @post_code,
@@ -84,6 +129,11 @@ sub _generate_return_object {
             q[}],
           );
     #>>>
+
+    if ( keys %$args ) {
+        require Carp;
+        Carp::croak( "unknown options passed to ", __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
+    }
 
     ## no critic (ProhibitStringyEval)
     return eval( $code ) || do {
@@ -112,6 +162,12 @@ __END__
   $result = foo();
   print $result->a;  # prints
   print $result->b;  # throws
+
+  # create two constructors, <cloned> and <copied> with different
+  # behaviors. does not import C<return_object>
+  use Return::Object
+    { -as => 'cloned', clone => 1},
+    { -as => 'copied', copy => 1 };
 
 =head1 DESCRIPTION
 
@@ -148,17 +204,14 @@ B<Return::Object::Class> class.
 
 The constructor may be customized to change which class the object is
 instantiated from, and how it is constructed from the data.
-C<Return::Object> uses L<Exporter::Tiny> to perform the customization.
 For example,
 
   use Return::Object
-    return_object => { -as => 'return_cloned_object',
-                       -clone => 1 };
+    { -as => 'return_cloned_object', -clone => 1 };
 
-will create a version of C<return_object> which clones the passed hash
+will create a constructor> which clones the passed hash
 and is imported as C<return_cloned_object>.  To import it under
 the original name, C<return_object>, leave out the C<-as> option.
-
 
 The following options are available to customize the constructor.
 
@@ -166,8 +219,8 @@ The following options are available to customize the constructor.
 
 =item C<-as> => I<subroutine name>
 
-This is optional, and imports the customized version of
-C<return_object> with the given name.
+This is optional, and imports the constructor with the given name. If
+not specified, it defaults to C<return_object>.
 
 =item C<-class> => I<class name>
 
