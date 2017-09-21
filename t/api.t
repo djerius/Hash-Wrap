@@ -3,12 +3,12 @@
 
 use Test2::V0;
 
-use Return::Object ();
+use Hash::Wrap ();
 
 
 like(
     dies {
-        Return::Object->import( 'not_exported' )
+        Hash::Wrap->import( 'not_exported' )
     },
     qr/not_exported is not exported/,
     'not exported'
@@ -16,7 +16,7 @@ like(
 
 like(
     dies {
-        Return::Object->import( { -bad_option => 1 } )
+        Hash::Wrap->import( { -bad_option => 1 } )
     },
     qr/unknown option/,
     'bad option'
@@ -24,7 +24,7 @@ like(
 
 like(
     dies {
-        Return::Object->import( { -copy => 1, -clone => 1 } )
+        Hash::Wrap->import( { -copy => 1, -clone => 1 } )
     },
     qr/cannot mix/,
     'copy + clone'
@@ -33,15 +33,15 @@ like(
 {
     package My::Import::Default;
 
-    use Return::Object;
+    use Hash::Wrap;
 }
 
-ref_ok( *My::Import::Default::return_object{CODE}, 'CODE', "default import" );
+ref_ok( *My::Import::Default::wrap_hash{CODE}, 'CODE', "default import" );
 
 {
     package My::Import::As;
 
-    use Return::Object { -as => 'foo' };
+    use Hash::Wrap { -as => 'foo' };
 
 }
 
@@ -50,10 +50,10 @@ ref_ok( *My::Import::As::foo{CODE}, 'CODE', "rename" );
 {
     package My::Import::CloneNoRename;
 
-    use Return::Object { -clone => 1 };
+    use Hash::Wrap { -clone => 1 };
 
 }
-ref_ok( *My::Import::CloneNoRename::return_object{CODE}, 'CODE', "clone, no rename" );
+ref_ok( *My::Import::CloneNoRename::wrap_hash{CODE}, 'CODE', "clone, no rename" );
 
 
 done_testing;

@@ -1,6 +1,6 @@
-package Return::Object::Base;
+package Hash::Wrap::Base;
 
-# ABSTRACT: Return::Object  base class
+# ABSTRACT: Hash::Wrap  base class
 
 use strict;
 use warnings;

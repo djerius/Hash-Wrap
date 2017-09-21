@@ -4,13 +4,13 @@ use Test2::V0;
 
 use Scalar::Util 'blessed';
 
-use Return::Object;
+use Hash::Wrap;
 
 subtest 'default' => sub {
 
     my %hash = ( a => 1, b => 2 );
 
-    my $obj = return_object \%hash;
+    my $obj = wrap_hash \%hash;
 
     is( $obj->a, 1, 'retrieve value' );
     is( $obj->b, 2, 'retrieve another value' );
@@ -38,7 +38,7 @@ subtest 'default' => sub {
 
 };
 
-use Return::Object {
+use Hash::Wrap {
     -as   => 'return_copied',
     -copy => 1,
 };
@@ -68,7 +68,7 @@ subtest 'copied' => sub {
 
 };
 
-use Return::Object {
+use Hash::Wrap {
     -as    => 'return_cloned',
     -clone => 1,
 };
@@ -93,7 +93,7 @@ subtest 'cloned' => sub {
 };
 
 
-use Return::Object 
+use Hash::Wrap 
   {
     -as     => 'return_created_class',
     -class  => 'My::CreatedClass',
@@ -124,10 +124,10 @@ subtest 'cache + create class' => sub {
 
 {
     package My::ExistingClass;
-    use parent 'Return::Object::Base';
+    use parent 'Hash::Wrap::Base';
 }
 
-use Return::Object
+use Hash::Wrap
   {
     -as    => 'return_existing_class',
     -class => 'My::ExistingClass',
@@ -163,7 +163,7 @@ subtest 'existing class, bad base' => sub {
 
     like(
         dies {
-            Return::Object->import(
+            Hash::Wrap->import(
                 {
                     -as    => 'return_existing_class_nobase',
                     -class => 'My::ExistingClassNoBase',
@@ -177,7 +177,7 @@ subtest 'existing class, bad base' => sub {
 
 {
     package My::ExistingClassWithConstructor;
-    use parent 'Return::Object::Base';
+    use parent 'Hash::Wrap::Base';
 
     sub new {
         my $class = shift;
@@ -186,7 +186,7 @@ subtest 'existing class, bad base' => sub {
     }
 }
 
-use Return::Object {
+use Hash::Wrap {
     -as    => 'return_existing_class_with_constructor',
     -class => 'My::ExistingClassWithConstructor',
 };
@@ -210,7 +210,7 @@ subtest 'existing class, constructor' => sub {
 
 };
 
-use Return::Object {
+use Hash::Wrap {
     -as     => 'return_existing_class_with_clone_sub',
     -class  => 'My::ExistingClassWithCloneSub',
     -create => 1,

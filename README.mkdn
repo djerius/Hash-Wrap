@@ -1,6 +1,6 @@
 # NAME
 
-Return::Object - on-the-fly generation of results objects
+Hash::Wrap - create lightweight on-the-fly objects from hashes
 
 # VERSION
 
@@ -8,10 +8,10 @@ version 0.01
 
 # SYNOPSIS
 
-    use Return::Object;
+    use Hash::Wrap;
 
     sub foo {
-      return_object { a => 1 };
+      wrap_hash { a => 1 };
     }
 
     $result = foo();
@@ -19,30 +19,35 @@ version 0.01
     print $result->b;  # throws
 
     # create two constructors, <cloned> and <copied> with different
-    # behaviors. does not import C<return_object>
-    use Return::Object
+    # behaviors. does not import C<wrap_hash>
+    use Hash::Wrap
       { -as => 'cloned', clone => 1},
       { -as => 'copied', copy => 1 };
 
 # DESCRIPTION
 
-This module provides routines which encapsulate a hash as an object.
-The object provides methods for keys in the hash; attempting to access
-a non-existent key via a method will cause an exception.
+This module provides constructors which create light-weight objects
+from existing hashes, allowing access to hash elements via methods
+(and thus avoiding typos). Attempting to access a non-existent element
+via a method will result in an exception.
 
-The impetus for this was to encapsulate data returned from a
-subroutine or method (hence the name).  Returning a bare hash can lead
-to bugs if there are typos in hash key names when accessing the hash.
+Hash elements may be added to or deleted from the object after
+instantiation using the standard Perl hash operations, and changes
+will be reflected in the object's methods. For example,
 
-It is not necessary for the hash to be fully populated when the object
-is created.  The underlying hash may be manipulated directly, and
-changes will be reflected in the object's methods.  To prevent this,
-consider using the lock routines in [Hash::Util](https://metacpan.org/pod/Hash::Util) on the object after
-creation.
+    $obj = wrap_hash( { a => 1, b => 2 );
+    $obj->c; # throws exception
+    $obj->{c} = 3;
+    $obj->c; # returns 3
+    delete $obj->{c};
+    $obj->c; # throws exception
 
-The object's methods act as both accessors and setters, e.g.
+To prevent modification of the hash, consider using the lock routines
+in [Hash::Util](https://metacpan.org/pod/Hash::Util) on the object.
 
-    $obj = return_object( { a => 1 } );
+The methods act as both accessors and setters, e.g.
+
+    $obj = wrap_hash( { a => 1 } );
     print $obj->a; # 1
     $obj->a( 3 );
     print $obj->a; # 3
@@ -52,34 +57,34 @@ object methods.
 
 ## Object construction and constructor customization
 
-By default `Object::Return` exports a `return_object` constructor
-which, given a hashref, blesses it directly into the
-**Return::Object::Class** class.
+By default `Hash::Wrap` exports a `wrap_hash` subroutine which,
+given a hashref, blesses it directly into the **Hash::Wrap::Class**
+class.
 
 The constructor may be customized to change which class the object is
 instantiated from, and how it is constructed from the data.
 For example,
 
-    use Return::Object
+    use Hash::Wrap
       { -as => 'return_cloned_object', -clone => 1 };
 
-will create a constructor> which clones the passed hash
+will create a constructor which clones the passed hash
 and is imported as `return_cloned_object`.  To import it under
-the original name, `return_object`, leave out the `-as` option.
+the original name, `wrap_hash`, leave out the `-as` option.
 
 The following options are available to customize the constructor.
 
 - `-as` => _subroutine name_
 
     This is optional, and imports the constructor with the given name. If
-    not specified, it defaults to `return_object`.
+    not specified, it defaults to `wrap_hash`.
 
 - `-class` => _class name_
 
     The object will be blessed into the specified class.  If the class
     should be created on the fly, specify the `-create` option.
     See ["Object Classes"](#object-classes) for what is expected of the object classes.
-    This defaults to `Object::Return::Class`.
+    This defaults to `Hash::Wrap::Class`.
 
 - `-create` => _boolean_
 
@@ -104,14 +109,14 @@ The following options are available to customize the constructor.
 
 An object class has the following properties:
 
-- The class must be a subclass of `Return::Object::Base`.
+- The class must be a subclass of `Hash::Wrap::Base`.
 - The class typically does not provide any methods, as they would mask
 a hash key of the same name.
 - The class need not have a constructor.  If it does, it is passed a
 hashref which it should bless as the actual object.  For example:
 
         package My::Result;
-        use parent 'Return::Object::Base';
+        use parent 'Hash::Wrap::Base';
 
         sub new {
           my  ( $class, $hash ) = @_;
@@ -120,20 +125,20 @@ hashref which it should bless as the actual object.  For example:
 
     This excludes having a hash key named `new`.
 
-`Return::Object::Base` provides an empty `DESTROY` method, a
+`Hash::Wrap::Base` provides an empty `DESTROY` method, a
 `can` method, and an `AUTOLOAD` method.  They will mask hash
 keys with the same names.
 
 # SEE ALSO
 
-Here's a compaison of this module and others on CPAN.
+Here's a comparison of this module and others on CPAN.
 
-- [Return::Object](https://metacpan.org/pod/Return::Object) (this module)
-    - Light dependency chain.
+- [Hash::Wrap](https://metacpan.org/pod/Hash::Wrap) (this module)
+    - core dependencies only
     - only applies object paradigm to top level hash
     - accessing a non-existing element via an accessor throws
     - can use custom package
-    - can copy/clone existing hash. clone is customizable
+    - can copy/clone existing hash. clone may be customized
 - [Object::Result](https://metacpan.org/pod/Object::Result)
 
     As you might expect from a
@@ -141,7 +146,7 @@ Here's a compaison of this module and others on CPAN.
     about everything you'd like.  It has a very heavy set of dependencies.
 
 - [Hash::AsObject](https://metacpan.org/pod/Hash::AsObject)
-    - no out-of-core dependencies
+    - core dependencies only
     - applies object paradigm recursively
     - accessing a non-existing element via an accessor creates it
 - [Data::AsObject](https://metacpan.org/pod/Data::AsObject)
@@ -149,12 +154,13 @@ Here's a compaison of this module and others on CPAN.
     - applies object paradigm recursively
     - accessing a non-existing element throws
 - [Class::Hash](https://metacpan.org/pod/Class::Hash)
-    - no out-of-core dependencies
+    - core dependencies only
     - only applies object paradigm to top level hash
     - can add generic accessor, mutator, and element management methods
     - accessing a non-existing element via an accessor creates it (not documented, but code implies it)
     - `can()` doesn't work
 - [Hash::Inflator](https://metacpan.org/pod/Hash::Inflator)
+    - core dependencies only
     - accessing a non-existing element via an accessor returns undef
     - applies object paradigm recursively
 - [Hash::AutoHash](https://metacpan.org/pod/Hash::AutoHash)
@@ -162,17 +168,27 @@ Here's a compaison of this module and others on CPAN.
     - applies object paradigm recursively
     - accessing a non-existing element via an accessor creates it
 - [Hash::Objectify](https://metacpan.org/pod/Hash::Objectify)
-    - only applies object paradigm to top level hash
     - light dependency chain.  Requires XS.
+    - only applies object paradigm to top level hash
     - accessing a non-existing element throws, but if an existing
     element is accessed, then deleted, accessor returns undef rather than
     throwing
     - can use custom package
+- [Data::OpenStruct::Deep](https://metacpan.org/pod/Data::OpenStruct::Deep)
+    - uses source filters
+    - applies object paradigm recursively
+- [Object::AutoAccessor](https://metacpan.org/pod/Object::AutoAccessor)
+    - light dependency chain
+    - applies object paradigm recursively
+    - accessing a non-existing element via an accessor creates it
+- [Data::Object::Autowrap](https://metacpan.org/pod/Data::Object::Autowrap)
+    - core dependencies only
+    - no documentation
 
 # BUGS AND LIMITATIONS
 
 You can make new bug reports, and view existing ones, through the
-web interface at [https://rt.cpan.org/Public/Dist/Display.html?Name=Return-Object](https://rt.cpan.org/Public/Dist/Display.html?Name=Return-Object).
+web interface at [https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap](https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap).
 
 # AUTHOR
 

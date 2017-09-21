@@ -1,17 +1,17 @@
-package Return::Object;
+package Hash::Wrap;
 
-# ABSTRACT: on-the-fly generation of results objects
+# ABSTRACT: create lightweight on-the-fly objects from hashes
 
 use strict;
 use warnings;
 
 our $VERSION = '0.01';
 
-our @EXPORT = qw[ return_object ];
+our @EXPORT = qw[ wrap_hash ];
 
 {
-    package Return::Object::Class;
-    use parent 'Return::Object::Base';
+    package Hash::Wrap::Class;
+    use parent 'Hash::Wrap::Base';
 }
 
 sub import {
@@ -39,18 +39,18 @@ sub import {
               unless grep { /$args/ } @EXPORT;
         }
 
-        my $name = exists $args->{-as} ? delete $args->{-as} : 'return_object';
+        my $name = exists $args->{-as} ? delete $args->{-as} : 'wrap_hash';
 
-        my $sub = _generate_return_object( $me, $name, { %$args } );
+        my $sub = _generate_wrap_hash( $me, $name, { %$args } );
 
-        no strict 'refs';
+        no strict 'refs'; ## no critic
         *{"$caller\::$name"} = $sub;
     }
 
 }
 
 
-sub _generate_return_object {
+sub _generate_wrap_hash {
 
     my ( $me ) = shift;
     my ( $name, $args ) = @_;
@@ -82,7 +82,7 @@ sub _generate_return_object {
         delete $args->{-clone};
     }
 
-    my $class = 'Return::Object::Class';
+    my $class = 'Hash::Wrap::Class';
     if ( defined $args->{-class} ) {
 
         $class = $args->{-class};
@@ -91,7 +91,7 @@ sub _generate_return_object {
 
             ## no critic (ProhibitStringyEval)
             my $code
-              = qq[ { package $class ; use parent 'Return::Object::Base'; } 1; ];
+              = qq[ { package $class ; use parent 'Hash::Wrap::Base'; } 1; ];
             eval( $code ) or do {
                 require Carp;
                 Carp::croak( "error generating on-the-fly class $class: $@" );
@@ -99,10 +99,10 @@ sub _generate_return_object {
 
             delete $args->{-create};
         }
-        elsif ( !$class->isa( 'Return::Object::Base' ) ) {
+        elsif ( !$class->isa( 'Hash::Wrap::Base' ) ) {
             require Carp;
             Carp::croak(
-                qq[class ($class) is not a subclass of Return::Object::Base\n]
+                qq[class ($class) is not a subclass of Hash::Wrap::Base\n]
             );
         }
 
@@ -138,7 +138,7 @@ sub _generate_return_object {
     ## no critic (ProhibitStringyEval)
     return eval( $code ) || do {
         require Carp;
-        Carp::croak( "error generating return_object subroutine: $@" );
+        Carp::croak( "error generating wrap_hash subroutine: $@" );
     };
 }
 
@@ -153,10 +153,10 @@ __END__
 =head1 SYNOPSIS
 
 
-  use Return::Object;
+  use Hash::Wrap;
 
   sub foo {
-    return_object { a => 1 };
+    wrap_hash { a => 1 };
   }
 
   $result = foo();
@@ -164,31 +164,37 @@ __END__
   print $result->b;  # throws
 
   # create two constructors, <cloned> and <copied> with different
-  # behaviors. does not import C<return_object>
-  use Return::Object
+  # behaviors. does not import C<wrap_hash>
+  use Hash::Wrap
     { -as => 'cloned', clone => 1},
     { -as => 'copied', copy => 1 };
 
 =head1 DESCRIPTION
 
 
-This module provides routines which encapsulate a hash as an object.
-The object provides methods for keys in the hash; attempting to access
-a non-existent key via a method will cause an exception.
+This module provides constructors which create light-weight objects
+from existing hashes, allowing access to hash elements via methods
+(and thus avoiding typos). Attempting to access a non-existent element
+via a method will result in an exception.
 
-The impetus for this was to encapsulate data returned from a
-subroutine or method (hence the name).  Returning a bare hash can lead
-to bugs if there are typos in hash key names when accessing the hash.
+Hash elements may be added to or deleted from the object after
+instantiation using the standard Perl hash operations, and changes
+will be reflected in the object's methods. For example,
 
-It is not necessary for the hash to be fully populated when the object
-is created.  The underlying hash may be manipulated directly, and
-changes will be reflected in the object's methods.  To prevent this,
-consider using the lock routines in L<Hash::Util> on the object after
-creation.
+   $obj = wrap_hash( { a => 1, b => 2 );
+   $obj->c; # throws exception
+   $obj->{c} = 3;
+   $obj->c; # returns 3
+   delete $obj->{c};
+   $obj->c; # throws exception
 
-The object's methods act as both accessors and setters, e.g.
 
-  $obj = return_object( { a => 1 } );
+To prevent modification of the hash, consider using the lock routines
+in L<Hash::Util> on the object.
+
+The methods act as both accessors and setters, e.g.
+
+  $obj = wrap_hash( { a => 1 } );
   print $obj->a; # 1
   $obj->a( 3 );
   print $obj->a; # 3
@@ -198,20 +204,20 @@ object methods.
 
 =head2 Object construction and constructor customization
 
-By default C<Object::Return> exports a C<return_object> constructor
-which, given a hashref, blesses it directly into the
-B<Return::Object::Class> class.
+By default C<Hash::Wrap> exports a C<wrap_hash> subroutine which,
+given a hashref, blesses it directly into the B<Hash::Wrap::Class>
+class.
 
 The constructor may be customized to change which class the object is
 instantiated from, and how it is constructed from the data.
 For example,
 
-  use Return::Object
+  use Hash::Wrap
     { -as => 'return_cloned_object', -clone => 1 };
 
-will create a constructor> which clones the passed hash
+will create a constructor which clones the passed hash
 and is imported as C<return_cloned_object>.  To import it under
-the original name, C<return_object>, leave out the C<-as> option.
+the original name, C<wrap_hash>, leave out the C<-as> option.
 
 The following options are available to customize the constructor.
 
@@ -220,14 +226,14 @@ The following options are available to customize the constructor.
 =item C<-as> => I<subroutine name>
 
 This is optional, and imports the constructor with the given name. If
-not specified, it defaults to C<return_object>.
+not specified, it defaults to C<wrap_hash>.
 
 =item C<-class> => I<class name>
 
 The object will be blessed into the specified class.  If the class
 should be created on the fly, specify the C<-create> option.
 See L</Object Classes> for what is expected of the object classes.
-This defaults to C<Object::Return::Class>.
+This defaults to C<Hash::Wrap::Class>.
 
 =item C<-create> => I<boolean>
 
@@ -259,7 +265,7 @@ An object class has the following properties:
 
 =item *
 
-The class must be a subclass of C<Return::Object::Base>.
+The class must be a subclass of C<Hash::Wrap::Base>.
 
 =item *
 
@@ -272,7 +278,7 @@ The class need not have a constructor.  If it does, it is passed a
 hashref which it should bless as the actual object.  For example:
 
   package My::Result;
-  use parent 'Return::Object::Base';
+  use parent 'Hash::Wrap::Base';
 
   sub new {
     my  ( $class, $hash ) = @_;
@@ -283,23 +289,23 @@ This excludes having a hash key named C<new>.
 
 =back
 
-C<Return::Object::Base> provides an empty C<DESTROY> method, a
+C<Hash::Wrap::Base> provides an empty C<DESTROY> method, a
 C<can> method, and an C<AUTOLOAD> method.  They will mask hash
 keys with the same names.
 
 
 =head1 SEE ALSO
 
-Here's a compaison of this module and others on CPAN.
+Here's a comparison of this module and others on CPAN.
 
 
 =over
 
-=item L<Return::Object> (this module)
+=item L<Hash::Wrap> (this module)
 
 =over
 
-=item * Light dependency chain.
+=item * core dependencies only
 
 =item * only applies object paradigm to top level hash
 
@@ -307,7 +313,7 @@ Here's a compaison of this module and others on CPAN.
 
 =item * can use custom package
 
-=item * can copy/clone existing hash. clone is customizable
+=item * can copy/clone existing hash. clone may be customized
 
 =back
 
@@ -322,7 +328,7 @@ about everything you'd like.  It has a very heavy set of dependencies.
 
 =over
 
-=item * no out-of-core dependencies
+=item * core dependencies only
 
 =item * applies object paradigm recursively
 
@@ -346,7 +352,7 @@ about everything you'd like.  It has a very heavy set of dependencies.
 
 =over
 
-=item * no out-of-core dependencies
+=item * core dependencies only
 
 =item * only applies object paradigm to top level hash
 
@@ -361,6 +367,8 @@ about everything you'd like.  It has a very heavy set of dependencies.
 =item L<Hash::Inflator>
 
 =over
+
+=item * core dependencies only
 
 =item * accessing a non-existing element via an accessor returns undef
 
@@ -384,15 +392,47 @@ about everything you'd like.  It has a very heavy set of dependencies.
 
 =over
 
-=item * only applies object paradigm to top level hash
-
 =item * light dependency chain.  Requires XS.
+
+=item * only applies object paradigm to top level hash
 
 =item * accessing a non-existing element throws, but if an existing
 element is accessed, then deleted, accessor returns undef rather than
 throwing
 
 =item * can use custom package
+
+=back
+
+=item L<Data::OpenStruct::Deep>
+
+=over
+
+=item * uses source filters
+
+=item * applies object paradigm recursively
+
+=back
+
+=item L<Object::AutoAccessor>
+
+=over
+
+=item * light dependency chain
+
+=item * applies object paradigm recursively
+
+=item * accessing a non-existing element via an accessor creates it
+
+=back
+
+=item L<Data::Object::Autowrap>
+
+=over
+
+=item * core dependencies only
+
+=item * no documentation
 
 =back
 

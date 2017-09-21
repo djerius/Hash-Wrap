@@ -7,15 +7,15 @@ use 5.006;
 use ExtUtils::MakeMaker;
 
 my %WriteMakefileArgs = (
-  "ABSTRACT" => "on-the-fly generation of results objects",
+  "ABSTRACT" => "create lightweight on-the-fly objects from hashes",
   "AUTHOR" => "Diab Jerius <djerius\@cpan.org>",
   "CONFIGURE_REQUIRES" => {
     "ExtUtils::MakeMaker" => 0
   },
-  "DISTNAME" => "Return-Object",
+  "DISTNAME" => "Hash-Wrap",
   "LICENSE" => "gpl",
   "MIN_PERL_VERSION" => "5.006",
-  "NAME" => "Return::Object",
+  "NAME" => "Hash::Wrap",
   "PREREQ_PM" => {
     "Carp" => 0,
     "Hash::Util" => 0,
