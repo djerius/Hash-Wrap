@@ -14,6 +14,13 @@ our @EXPORT = qw[ wrap_hash ];
     use parent 'Hash::Wrap::Base';
 }
 
+
+sub _croak {
+
+    require Carp;
+    Carp::croak( @_ );
+}
+
 sub import {
 
     my ( $me ) = shift;
@@ -26,16 +33,14 @@ sub import {
     for my $args ( @imports ) {
 
         if ( ! ref $args ) {
-            require Carp;
-            Carp::croak( "$args is not exported by ", __PACKAGE__, "\n" )
+            _croak( "$args is not exported by ", __PACKAGE__, "\n" )
               unless grep { /$args/ } @EXPORT;
 
             $args = { -as => $args };
-        }
+         }
 
         elsif ( 'HASH' ne ref $args ) {
-            require Carp;
-            Carp::croak( "argument to ", __PACKAGE__, "::import must be string or hash\n")
+            _croak( "argument to ", __PACKAGE__, "::import must be string or hash\n")
               unless grep { /$args/ } @EXPORT;
         }
 
@@ -60,10 +65,9 @@ sub _generate_wrap_hash {
 
     my ( @pre_code, @post_code );
 
-    if ( exists $args->{-copy} && exists $args->{-clone} ) {
-        require Carp;
-        Carp::croak( "cannot mix -copy and -clone\n" );
-    }
+    _croak( "cannot mix -copy and -clone\n" )
+      if exists $args->{-copy} && exists $args->{-clone};
+
 
     if ( delete $args->{-copy} ) {
         push @pre_code, '$hash = { %{ $hash } };';
@@ -90,18 +94,13 @@ sub _generate_wrap_hash {
         if ( $args->{-create} ) {
 
             ## no critic (ProhibitStringyEval)
-            my $code
-              = qq[ { package $class ; use parent 'Hash::Wrap::Base'; } 1; ];
-            eval( $code ) or do {
-                require Carp;
-                Carp::croak( "error generating on-the-fly class $class: $@" );
-            };
+            eval( qq[ { package $class ; use parent 'Hash::Wrap::Base'; } 1; ] )
+              or _croak( "error generating on-the-fly class $class: $@" );
 
             delete $args->{-create};
         }
         elsif ( !$class->isa( 'Hash::Wrap::Base' ) ) {
-            require Carp;
-            Carp::croak(
+            _croak(
                 qq[class ($class) is not a subclass of Hash::Wrap::Base\n]
             );
         }
@@ -121,7 +120,7 @@ sub _generate_wrap_hash {
       join( "\n",
             q[sub ($) {],
             q[my $hash = shift;],
-            qq[if ( ! 'HASH' eq ref \$hash ) { require Carp; croak( "argument to $name must be a hashref\n" ) }],
+            qq[if ( ! 'HASH' eq ref \$hash ) { _croak( "argument to $name must be a hashref\n" ) }],
             @pre_code,
             $construct,
             @post_code,
@@ -131,15 +130,12 @@ sub _generate_wrap_hash {
     #>>>
 
     if ( keys %$args ) {
-        require Carp;
-        Carp::croak( "unknown options passed to ", __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
+        _croak( "unknown options passed to ", __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
     }
 
     ## no critic (ProhibitStringyEval)
-    return eval( $code ) || do {
-        require Carp;
-        Carp::croak( "error generating wrap_hash subroutine: $@" );
-    };
+    return eval( $code ) || _croak( "error generating wrap_hash subroutine: $@" );
+
 }
 
 
