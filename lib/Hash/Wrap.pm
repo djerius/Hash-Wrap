@@ -2,6 +2,8 @@ package Hash::Wrap;
 
 # ABSTRACT: create lightweight on-the-fly objects from hashes
 
+use 5.008009;
+
 use strict;
 use warnings;
 

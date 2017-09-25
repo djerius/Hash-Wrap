@@ -2,6 +2,8 @@ package Hash::Wrap::Base;
 
 # ABSTRACT: Hash::Wrap  base class
 
+use 5.008009;
+
 use strict;
 use warnings;
 
