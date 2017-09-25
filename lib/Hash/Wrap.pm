@@ -54,11 +54,23 @@ sub import {
 
 }
 
+# default constructor
+sub _wrap_hash ($) { ## no critic (ProhibitSubroutinePrototypes)
+    my $hash = shift;
+
+    if ( ! 'HASH' eq ref $hash ) {
+        require Carp;
+        croak( "argument to wrap_hash must be a hashref\n" );
+    }
+    bless $hash, 'Hash::Wrap::Class';
+}
 
 sub _generate_wrap_hash {
 
     my ( $me ) = shift;
     my ( $name, $args ) = @_;
+
+    return \&_wrap_hash unless keys %$args;
 
     # closure for user provided clone sub
     my $clone;
