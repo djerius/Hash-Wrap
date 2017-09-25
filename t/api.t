@@ -41,7 +41,7 @@ ref_ok( *My::Import::Default::wrap_hash{CODE}, 'CODE', "default import" );
 {
     package My::Import::As;
 
-    use Hash::Wrap { -as => 'foo' };
+    use Hash::Wrap ( { -as => 'foo' } );
 
 }
 
@@ -50,7 +50,7 @@ ref_ok( *My::Import::As::foo{CODE}, 'CODE', "rename" );
 {
     package My::Import::CloneNoRename;
 
-    use Hash::Wrap { -clone => 1 };
+    use Hash::Wrap ( { -clone => 1 } );
 
 }
 ref_ok( *My::Import::CloneNoRename::wrap_hash{CODE}, 'CODE', "clone, no rename" );

@@ -38,10 +38,10 @@ subtest 'default' => sub {
 
 };
 
-use Hash::Wrap {
+use Hash::Wrap ( {
     -as   => 'return_copied',
     -copy => 1,
-};
+});
 
 
 subtest 'copied' => sub {
@@ -68,10 +68,10 @@ subtest 'copied' => sub {
 
 };
 
-use Hash::Wrap {
+use Hash::Wrap ({
     -as    => 'return_cloned',
     -clone => 1,
-};
+});
 
 
 subtest 'cloned' => sub {
@@ -93,12 +93,11 @@ subtest 'cloned' => sub {
 };
 
 
-use Hash::Wrap 
-  {
+use Hash::Wrap ({
     -as     => 'return_created_class',
     -class  => 'My::CreatedClass',
     -create => 1,
-  };
+  });
 
 # check that caching and alternative classing with creation works
 subtest 'cache + create class' => sub {
@@ -127,11 +126,10 @@ subtest 'cache + create class' => sub {
     use parent 'Hash::Wrap::Base';
 }
 
-use Hash::Wrap
-  {
+use Hash::Wrap ({
     -as    => 'return_existing_class',
     -class => 'My::ExistingClass',
-  };
+  });
 
 # check that caching and alternative classing with creation works
 subtest 'cache + existing class' => sub {
@@ -186,10 +184,10 @@ subtest 'existing class, bad base' => sub {
     }
 }
 
-use Hash::Wrap {
+use Hash::Wrap ({
     -as    => 'return_existing_class_with_constructor',
     -class => 'My::ExistingClassWithConstructor',
-};
+});
 
 # check that caching and alternative classing with creation works
 subtest 'existing class, constructor' => sub {
@@ -210,7 +208,7 @@ subtest 'existing class, constructor' => sub {
 
 };
 
-use Hash::Wrap {
+use Hash::Wrap ({
     -as     => 'return_existing_class_with_clone_sub',
     -class  => 'My::ExistingClassWithCloneSub',
     -create => 1,
@@ -219,7 +217,7 @@ use Hash::Wrap {
         $new{c} = 5;
         \%new;
     },
-};
+});
 
 # clone coderef
 subtest 'existing class, clone sub' => sub {
