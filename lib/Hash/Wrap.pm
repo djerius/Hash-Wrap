@@ -10,7 +10,7 @@ use warnings;
 use Scalar::Util qw[ blessed ];
 use MRO::Compat;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 our @EXPORT = qw[ wrap_hash ];
 
