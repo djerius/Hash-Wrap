@@ -354,15 +354,17 @@ is used. If a coderef, it will be called as
 
 By default, the object uses the hash directly.
 
-=item C<lvalue> => I<boolean>
+=item C<-lvalue> => I<boolean>
 
 If true, the accessors will be lvalue routines, e.g. they can
 change the underlying hash value by assigning to them:
 
    $obj->attr = 3;
 
-This is only available on Perl 5.16 and higher.
+The hash entry must already exist before using the accessor in
+this manner, or it will throw an exception.
 
+This is only available on Perl 5.16 and higher.
 
 =back
 
