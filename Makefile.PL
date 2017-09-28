@@ -17,23 +17,20 @@ my %WriteMakefileArgs = (
   "MIN_PERL_VERSION" => "5.008009",
   "NAME" => "Hash::Wrap",
   "PREREQ_PM" => {
-    "Carp" => 0,
     "Hash::Util" => 0,
-    "Scalar::Util" => 0,
-    "Storable" => 0,
-    "parent" => 0,
-    "strict" => 0,
-    "warnings" => 0
+    "MRO::Compat" => 0,
+    "Scalar::Util" => 0
   },
   "TEST_REQUIRES" => {
     "ExtUtils::MakeMaker" => 0,
     "File::Spec" => 0,
     "IO::Handle" => 0,
     "IPC::Open3" => 0,
+    "Number::Tolerant" => 0,
     "Test2::V0" => 0,
     "Test::More" => 0
   },
-  "VERSION" => "0.01",
+  "VERSION" => "0.02",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -41,19 +38,16 @@ my %WriteMakefileArgs = (
 
 
 my %FallbackPrereqs = (
-  "Carp" => 0,
   "ExtUtils::MakeMaker" => 0,
   "File::Spec" => 0,
   "Hash::Util" => 0,
   "IO::Handle" => 0,
   "IPC::Open3" => 0,
+  "MRO::Compat" => 0,
+  "Number::Tolerant" => 0,
   "Scalar::Util" => 0,
-  "Storable" => 0,
   "Test2::V0" => 0,
-  "Test::More" => 0,
-  "parent" => 0,
-  "strict" => 0,
-  "warnings" => 0
+  "Test::More" => 0
 );
 
 

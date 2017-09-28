@@ -7,21 +7,87 @@ use 5.008009;
 use strict;
 use warnings;
 
+use Scalar::Util qw[ blessed ];
+use MRO::Compat;
+
 our $VERSION = '0.02';
 
 our @EXPORT = qw[ wrap_hash ];
-
-{
-    package Hash::Wrap::Class;
-    use parent 'Hash::Wrap::Base';
-}
-
 
 sub _croak {
 
     require Carp;
     Carp::croak( @_ );
 }
+
+sub _find_generator {
+
+    my ( $object, $target ) = @_;
+
+    my $package = blessed( $object ) || $object;
+    my $name = "generate_$target";
+
+    ## no critic (ProhibitNoStrict)
+    no strict 'refs';
+
+    my $mro = mro::get_linear_isa( $package );
+
+    for my $module ( @$mro ) {
+        my $candidate = *{"$module\::$name"}{SCALAR};
+
+        return $$candidate if defined $candidate && 'CODE' eq ref $$candidate;
+    }
+
+    _croak( "Unable to find generator for $target for class $package\n" );
+
+}
+
+# this is called only if the method doesn't exist.
+sub _generate_accessor {
+
+    my ( $object, $method, $key ) = @_;
+
+    my $package = blessed( $object ) || $object;
+
+    my ( $signature, $body ) = map _find_generator( $object, $_ ),
+      qw[ signature body ];
+
+    my $sub
+      = "sub "
+      . $signature->( $object, $method, $key ) . "{\n"
+      . $body->( $object, $method, $key ) . "\n}\n";
+
+    ## no critic (ProhibitNoStrict)
+    no strict 'refs';
+
+    # $code = eval "sub : lvalue { ... }" will invoke the sub as it is
+    # used as an rvalue inside of the eval.
+
+    ## no critic (ProhibitStringyEval)
+    my $coderef = eval qq[do { package $package; my \$coderef = $sub  }];
+    _croak( qq[error compiling accessor: $@\n $sub \n] )
+      if $@;
+
+    *{$method} = $coderef;
+
+    return *{$method}{CODE};
+}
+
+sub _autoload {
+
+    my ( $method, $object ) = @_;
+
+    ( my $key = $method ) =~ s/.*:://;
+
+    _croak( qq[Can't locate class method "$key" via package @{[ ref $object]} \n] )
+      unless  Scalar::Util::blessed( $object );
+
+    _croak( qq[Can't locate object method "$key" via package @{[ ref $object]} \n] )
+      unless exists $object->{$key};
+
+    _generate_accessor( $object, $method, $key );
+}
+
 
 sub import {
 
@@ -79,6 +145,9 @@ sub _generate_wrap_hash {
 
     my ( @pre_code, @post_code );
 
+    _croak( "lvalue accessors require Perl 5.16 or later\n" )
+      if $args->{-value} && $] lt '5.016000';
+
     _croak( "cannot mix -copy and -clone\n" )
       if exists $args->{-copy} && exists $args->{-clone};
 
@@ -100,15 +169,17 @@ sub _generate_wrap_hash {
         delete $args->{-clone};
     }
 
-    my $class = 'Hash::Wrap::Class';
+    my $class;
     if ( defined $args->{-class} ) {
 
         $class = $args->{-class};
 
         if ( $args->{-create} ) {
 
+            my $parent = $args->{-lvalue} ? 'Hash::Wrap::Base::LValue' : 'Hash::Wrap::Base';
+
             ## no critic (ProhibitStringyEval)
-            eval( qq[ { package $class ; use parent 'Hash::Wrap::Base'; } 1; ] )
+            eval( qq[ { package $class; use parent '$parent'; } 1; ] )
               or _croak( "error generating on-the-fly class $class: $@" );
 
             delete $args->{-create};
@@ -118,8 +189,24 @@ sub _generate_wrap_hash {
                 qq[class ($class) is not a subclass of Hash::Wrap::Base\n]
             );
         }
+        else{
+
+            if ( $args->{-lvalue} ) {
+                my $signature = _find_generator( $class, 'signature' )->();
+                _croak( "signature generator for $class does not add ':lvalue'\n" )
+                  unless $signature =~ /:\s*lvalue/;
+            }
+        }
 
         delete $args->{-class};
+    }
+    elsif ( $args->{-lvalue} ) {
+        require Hash::Wrap::Class::LValue;
+        $class = 'Hash::Wrap::Class::LValue';
+    }
+    else {
+        require Hash::Wrap::Class;
+        $class = 'Hash::Wrap::Class';
     }
 
     my $construct = 'my $obj = '
@@ -143,6 +230,9 @@ sub _generate_wrap_hash {
           );
     #>>>
 
+    # easier to remove it here than in the code, as it is referenced
+    # multiple times
+    delete $args->{-lvalue};
     if ( keys %$args ) {
         _croak( "unknown options passed to ", __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
     }
@@ -264,6 +354,15 @@ is used. If a coderef, it will be called as
 
 By default, the object uses the hash directly.
 
+=item C<lvalue> => I<boolean>
+
+If true, the accessors will be lvalue routines, e.g. they can
+change the underlying hash value by assigning to them:
+
+   $obj->attr = 3;
+
+This is only available on Perl 5.16 and higher.
+
 
 =back
 
@@ -303,6 +402,15 @@ C<Hash::Wrap::Base> provides an empty C<DESTROY> method, a
 C<can> method, and an C<AUTOLOAD> method.  They will mask hash
 keys with the same names.
 
+=head1 LIMITATIONS
+
+=over
+
+=item *
+
+Lvalue accessors are available only on Perl 5.16 and later.
+
+=back
 
 =head1 SEE ALSO
 
@@ -318,6 +426,8 @@ Here's a comparison of this module and others on CPAN.
 =item * core dependencies only
 
 =item * only applies object paradigm to top level hash
+
+=item * accessors may be lvalue subroutines
 
 =item * accessing a non-existing element via an accessor throws
 
@@ -447,3 +557,5 @@ throwing
 =back
 
 =back
+
+

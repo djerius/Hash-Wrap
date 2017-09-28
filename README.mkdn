@@ -4,7 +4,7 @@ Hash::Wrap - create lightweight on-the-fly objects from hashes
 
 # VERSION
 
-version 0.01
+version 0.02
 
 # SYNOPSIS
 
@@ -105,6 +105,15 @@ The following options are available to customize the constructor.
 
     By default, the object uses the hash directly.
 
+- `lvalue` => _boolean_
+
+    If true, the accessors will be lvalue routines, e.g. they can
+    change the underlying hash value by assigning to them:
+
+        $obj->attr = 3;
+
+    This is only available on Perl 5.16 and higher.
+
 ## Object Classes
 
 An object class has the following properties:
@@ -129,6 +138,10 @@ hashref which it should bless as the actual object.  For example:
 `can` method, and an `AUTOLOAD` method.  They will mask hash
 keys with the same names.
 
+# LIMITATIONS
+
+- Lvalue accessors are available only on Perl 5.16 and later.
+
 # SEE ALSO
 
 Here's a comparison of this module and others on CPAN.
@@ -136,6 +149,7 @@ Here's a comparison of this module and others on CPAN.
 - [Hash::Wrap](https://metacpan.org/pod/Hash::Wrap) (this module)
     - core dependencies only
     - only applies object paradigm to top level hash
+    - accessors may be lvalue subroutines
     - accessing a non-existing element via an accessor throws
     - can use custom package
     - can copy/clone existing hash. clone may be customized
@@ -185,10 +199,20 @@ Here's a comparison of this module and others on CPAN.
     - core dependencies only
     - no documentation
 
-# BUGS AND LIMITATIONS
+# BUGS
 
-You can make new bug reports, and view existing ones, through the
-web interface at [https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap](https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap).
+Please report any bugs or feature requests on the bugtracker website
+[https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap](https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap) or by email
+to [bug-Hash-Wrap@rt.cpan.org](mailto:bug-Hash-Wrap@rt.cpan.org).
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
+
+# SOURCE
+
+The development version is on github at [https://github.com/djerius/hash-wrap](https://github.com/djerius/hash-wrap)
+and may be cloned from [git://github.com/djerius/hash-wrap.git](git://github.com/djerius/hash-wrap.git)
 
 # AUTHOR
 

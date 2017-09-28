@@ -11,30 +11,31 @@ our $VERSION = '0.02';
 
 our $AUTOLOAD;
 
+use Hash::Wrap ();
 use Scalar::Util;
 
-# this is called only if the method doesn't exist.
-my $generate_accessor = sub {
+our $generate_signature = sub {
+    return '';
+};
+
+our $generate_body = sub {
 
     my ( $self, $method, $key ) = @_;
 
-    ## no critic (ProhibitNoStrict)
-    no strict 'refs';
-    *{$method} = sub {
-        my $self = shift;
+    return qq{
+        my \$self = shift;
 
-        unless ( exists $self->{$key} ) {
+        unless ( exists \$self->{'$key'} ) {
             require Carp;
-            Carp::croak( qq[Can't locate object method "$key" via package @{[ Scalar::Util::blessed( $self ) ]} \n] );
+            Carp::croak( qq[Can't locate object method "$key" via package \@{[ Scalar::Util::blessed( \$self ) ]} \n] );
           }
 
-        $self->{$key} = $_[0] if @_;
+        \$self->{'$key'} = \$_[0] if \@_;
 
-        return $self->{$key};
-      };
-
-      return *{$method}{CODE};
+        return \$self->{'$key'};
+   };
 };
+
 
 =begin pod_coverage
 
@@ -57,30 +58,14 @@ sub can {
 
     ## no critic (ProhibitNoStrict)
     no strict 'refs';
-    return *{$method}{CODE} || $self->$generate_accessor( $method, $key );
+    return *{$method}{CODE} || Hash::Wrap::_generate_accessor( $self, $method, $key );
 }
 
-sub DESTROY {}
+sub DESTROY { }
 
 sub AUTOLOAD {
 
-    my $self   = $_[0];
-    my $method = $AUTOLOAD;
-
-    ( my $key = $method ) =~ s/.*:://;
-
-    unless ( Scalar::Util::blessed( $self ) ) {
-        require Carp;
-        Carp::croak( qq[Can't locate class method "$key" via package @{[ ref $self]} \n] )
-    }
-
-    unless ( exists $self->{$key} ) {
-        require Carp;
-        Carp::croak( qq[Can't locate object method "$key" via package @{[ ref $self]} \n] )
-    }
-
-    goto &{ $self->$generate_accessor( $method, $key ) };
+    goto &{ &Hash::Wrap::_autoload( $AUTOLOAD, $_[0] ) };
 }
-
 
 1;

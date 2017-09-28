@@ -2,6 +2,10 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+  [ENHANCEMENT]
+
+    * lvalue accessors are now available for Perl 5.16 or later.
+
 0.01      2017-09-25 11:50:04-04:00 America/New_York
 
     * Initial release upon an unsuspecting world
