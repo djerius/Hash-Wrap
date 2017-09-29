@@ -4,7 +4,7 @@ Hash::Wrap - create lightweight on-the-fly objects from hashes
 
 # VERSION
 
-version 0.02
+version 0.04
 
 # SYNOPSIS
 

@@ -5,7 +5,7 @@ use warnings;
 
 use 5.01600;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use Hash::Wrap ();
 use parent 'Hash::Wrap::Base';
