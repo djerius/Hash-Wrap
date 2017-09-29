@@ -2,6 +2,12 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.03      2017-09-28 21:56:42-04:00 America/New_York
+
+  [BUG FIX]
+
+    * The default import of wrap_hash was broken by version 0.02.
+
 0.02      2017-09-28 14:49:16-04:00 America/New_York
 
   [ENHANCEMENT]
