@@ -12,6 +12,8 @@ use MRO::Compat;
 
 our $VERSION = '0.03';
 
+use Hash::Wrap::Class;
+
 our @EXPORT = qw[ wrap_hash ];
 
 sub _croak {
@@ -126,10 +128,9 @@ sub import {
 sub _wrap_hash ($) { ## no critic (ProhibitSubroutinePrototypes)
     my $hash = shift;
 
-    if ( ! 'HASH' eq ref $hash ) {
-        require Carp;
-        croak( "argument to wrap_hash must be a hashref\n" );
-    }
+    _croak( "argument to wrap_hash must be a hashref\n" )
+      unless 'HASH' eq ref $hash;
+
     bless $hash, 'Hash::Wrap::Class';
 }
 
