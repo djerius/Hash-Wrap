@@ -179,8 +179,19 @@ sub _generate_wrap_hash {
 
             my $parent = $args->{-lvalue} ? 'Hash::Wrap::Base::LValue' : 'Hash::Wrap::Base';
 
+
+            my $extra = '';
+
+            if ( defined $args->{-fields} ) {
+                _croak( "must specify fields as an arrayref\n" )
+                  if ref $args->{-fields} ne 'HASH';
+
+                require B;
+                $extra .= 'use fields (' . join( ',', map { B::perlstring( $_ ) } @{$args->{-fields}} ) . ');';
+            }
+
             ## no critic (ProhibitStringyEval)
-            eval( qq[ { package $class; use parent '$parent'; } 1; ] )
+            eval( qq[ { package $class; use parent '$parent'; $extra } 1; ] )
               or _croak( "error generating on-the-fly class $class: $@" );
 
             delete $args->{-create};
@@ -210,12 +221,20 @@ sub _generate_wrap_hash {
         $class = 'Hash::Wrap::Class';
     }
 
-    my $construct = 'my $obj = '
-      . (
-        $class->can( 'new' )
-        ? qq[$class->new(\$hash);]
-        : qq[bless \$hash, '$class';]
-      );
+    my $construct = 'my $obj = ' . do {
+
+        if ( $class->can( 'new' ) ) {
+            qq[$class->new(\$hash);]
+        }
+        elsif( $args->{-fields} ) {
+            qq[do { require fields; fields::new( $class ); } ]
+        }
+
+        else {
+            qq[bless \$hash, '$class';]
+        }
+
+      };
 
     #<<< no tidy
     my $code =
