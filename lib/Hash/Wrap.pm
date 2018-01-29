@@ -327,12 +327,21 @@ END
 
 sub _interpolate {
 
-    my ( $tpl, %dict ) = @_;
+    my ( $tpl, $dict, $work ) = @_;
+
+    $work = { loop => {} } unless defined $work;
 
     $$tpl =~ s{ \<\<(\w+)\>\>
               }{
                   my $key = lc $1;
-                  $dict{$key}
+                  my $v = $dict->{$key};
+                  if ( defined $v ) {
+                      _croak( "circular interpolation loop detected for $key\n" )
+                        if $work->{loop}{$key}++;
+                      _interpolate( \$v, $dict, $work );
+                      --$work->{loop}{$key};
+                 }
+                 $v;
               }gex;
     return;
 }
