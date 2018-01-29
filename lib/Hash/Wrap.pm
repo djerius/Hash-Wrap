@@ -578,7 +578,8 @@ Here's a comparison of this module and others on CPAN.
 
 =item * accessors may be lvalue subroutines
 
-=item * accessing a non-existing element via an accessor throws
+=item * accessing a non-existing element via an accessor
+throws by default, but can optionally return C<undef>
 
 =item * can use custom package
 
