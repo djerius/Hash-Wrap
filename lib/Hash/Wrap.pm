@@ -25,12 +25,11 @@ sub _croak {
     Carp::croak( @_ );
 }
 
-sub _find_generator {
+sub _find_sub {
 
-    my ( $object, $target ) = @_;
+    my ( $object, $sub ) = @_;
 
     my $package = blessed( $object ) || $object;
-    my $name = "generate_$target";
 
     ## no critic (ProhibitNoStrict)
     no strict 'refs';
@@ -38,12 +37,12 @@ sub _find_generator {
     my $mro = mro::get_linear_isa( $package );
 
     for my $module ( @$mro ) {
-        my $candidate = *{"$module\::$name"}{SCALAR};
+        my $candidate = *{"$module\::$sub"}{SCALAR};
 
         return $$candidate if defined $candidate && 'CODE' eq ref $$candidate;
     }
 
-    _croak( "Unable to find generator for $target for class $package\n" );
+    _croak( "Unable to find sub reference \$$sub for class $package\n" );
 
 }
 
@@ -54,7 +53,7 @@ sub _generate_accessor {
 
     my $package = blessed( $object ) || $object;
 
-    my ( $signature, $body ) = map _find_generator( $object, $_ ),
+    my ( $signature, $body ) = map _find_sub( $object, "generate_$_" ),
       qw[ signature body ];
 
     my $sub
@@ -177,7 +176,7 @@ sub _generate_wrap_hash {
           if !$class->isa( 'Hash::Wrap::Base' );
 
         if ( $args->{-lvalue} ) {
-            my $signature = _find_generator( $class, 'signature' )->();
+            my $signature = _find_sub( $class, 'generate_signature' )->();
             _croak( "signature generator for $class does not add ':lvalue'\n" )
               unless defined $signature && $signature =~ /:\s*lvalue/;
         }
