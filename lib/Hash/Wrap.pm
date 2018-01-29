@@ -31,8 +31,8 @@ sub _find_sub {
 
     my $package = blessed( $object ) || $object;
 
-    ## no critic (ProhibitNoStrict)
-    no strict 'refs';
+    no strict 'refs';  ## no critic (ProhibitNoStrict)
+
 
     my $mro = mro::get_linear_isa( $package );
 
@@ -121,12 +121,12 @@ sub import {
 
     for my $args ( @imports ) {
 
-        if ( ! ref $args ) {
+        if ( !ref $args ) {
             _croak( "$args is not exported by ", __PACKAGE__, "\n" )
               unless grep { /$args/ } @EXPORT;
 
             $args = { -as => $args };
-         }
+        }
 
         elsif ( 'HASH' ne ref $args ) {
             _croak(
@@ -142,9 +142,9 @@ sub import {
 
         my $name = exists $args->{-as} ? delete $args->{-as} : 'wrap_hash';
 
-        my $sub = _generate_wrap_hash( $me, $name, { %$args } );
+        my $sub = _generate_wrap_hash( $me, $name, {%$args} );
 
-        no strict 'refs'; ## no critic
+        no strict 'refs';    ## no critic (ProhibitNoStrict)
         *{"$caller\::$name"} = $sub;
     }
 
@@ -190,7 +190,7 @@ sub _generate_wrap_hash {
         $class = $args->{-class};
 
         _croak( qq[class ($class) is not a subclass of Hash::Wrap::Base\n] )
-          if !$class->isa( 'Hash::Wrap::Base' );
+          unless $class->isa( 'Hash::Wrap::Base' );
 
         if ( $args->{-lvalue} ) {
             my $signature = _find_sub( $class, 'generate_signature' )->();
@@ -258,7 +258,7 @@ sub _build_class {
 
     if ( !defined $class ) {
 
-        my @class = map { s/-//; $_ } sort keys %$attr;
+        my @class = map { (my $attr = $_)  =~ s/-//; $attr } sort keys %$attr;
 
         if ( $attr->{-fields} ) {
             push @class, sha256_hex( join( $;, sort @{ $attr->{-fields} } ) );
@@ -316,7 +316,7 @@ sub AUTOLOAD <<AUTOLOAD_ATTR>> {
 END
     _interpolate( \$class_template, %code );
 
-    eval( $class_template )
+    eval( $class_template )  ## no critic (ProhibitStringyEval)
       or _croak( "error generating class $class: $@" );
 
 
