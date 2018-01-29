@@ -314,15 +314,21 @@ sub AUTOLOAD <<AUTOLOAD_ATTR>> {
 
 1;
 END
-    _interpolate( \$class_template, %code );
 
-    eval( $class_template )  ## no critic (ProhibitStringyEval)
-      or _croak( "error generating class $class: $@" );
-
+    _compile_from_tpl( \$class_template, \%code )
+      or _croak( "error generating class $class: $@\n$class_template" );
 
     $REGISTRY{$class}++;
 
     return $class;
+}
+
+# can't handle closures; should use Sub::Quote
+sub _compile_from_tpl {
+    my ( $code, $dict ) = @_;
+
+    _interpolate( $code, $dict );
+    eval( $$code );  ## no critic (ProhibitStringyEval)
 }
 
 sub _interpolate {
