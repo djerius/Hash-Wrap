@@ -110,8 +110,15 @@ sub import {
          }
 
         elsif ( 'HASH' ne ref $args ) {
-            _croak( "argument to ", __PACKAGE__, "::import must be string or hash\n")
-              unless grep { /$args/ } @EXPORT;
+            _croak(
+                "argument to ",
+                __PACKAGE__,
+                "::import must be string or hash\n"
+            ) unless grep { /$args/ } @EXPORT;
+        }
+        else {
+            # make a copy as it gets modified later on
+            $args = { %$args };
         }
 
         my $name = exists $args->{-as} ? delete $args->{-as} : 'wrap_hash';
