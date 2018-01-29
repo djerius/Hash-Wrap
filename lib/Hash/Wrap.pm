@@ -9,7 +9,6 @@ use warnings;
 
 use Scalar::Util qw[ blessed ];
 use MRO::Compat;
-use Digest::SHA;
 
 our $VERSION = '0.04';
 
@@ -298,7 +297,7 @@ sub _build_class {
         my @class = map { ( my $attr = $_ ) =~ s/-//; $attr } sort keys %$attr;
 
         if ( $attr->{-fields} ) {
-            push @class, sha256_hex( join( $;, sort @{ $attr->{-fields} } ) );
+            push @class, join( $;, sort @{ $attr->{-fields} } );
         }
 
         $class = join '::', 'Hash::Wrap::Class', @class;
