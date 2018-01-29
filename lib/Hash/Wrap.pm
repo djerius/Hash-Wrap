@@ -49,64 +49,98 @@ sub _find_sub {
 # this is called only if the method doesn't exist.
 sub _generate_accessor {
 
-    my ( $object, $method, $key ) = @_;
-
-    my $package = blessed( $object ) || $object;
-
-    my ( $signature, $body ) = map _find_sub( $object, "generate_$_" ),
-      qw[ signature body ];
+    my ( $object, $package, $key ) = @_;
 
     # $code = eval "sub : lvalue { ... }" will invoke the sub as it is
     # used as an lvalue inside of the eval, so set it equal to a variable
     # to ensure it's an rvalue
 
     my $code = q[
-      do {
         package <<PACKAGE>>;
-        my $coderef =
-          sub <<SIGNATURE>> {
-            <<BODY>>
-          }
-      }
+        use Scalar::Util ();
+
+       sub <<KEY>> <<SIGNATURE>> {
+         my $self = shift;
+
+         unless ( Scalar::Util::blessed( $self ) ) {
+           require Carp;
+           Carp::croak( qq[Can't locate object method "<<KEY>>" via package $self \n] );
+         }
+
+         unless ( <<VALIDATE>> ) {
+           require Carp;
+           Carp::croak( qq[Can't locate object method "<<KEY>>" via package @{[ Scalar::Util::blessed( $self ) ]} \n] );
+         }
+
+        $self->{q[<<KEY>>]} = $_[0] if @_;
+
+        return $self->{q[<<KEY>>]};
+       }
+       \&<<KEY>>;
     ];
 
-    _interpolate(
-        \$code,
-        package   => $package,
-        signature => $signature->( $object, $method, $key ),
-        body      => $body->( $object, $method, $key ),
+    my %dict = (
+        package => $package,
+        key     => $key,
     );
 
+    $dict{$_} = _find_sub( $object, "generate_$_" )->()
+      for  qw[ validate signature ];
 
-    my $coderef = eval $code;    ## no critic (ProhibitStringyEval)
+    my $coderef = _compile_from_tpl( \$code, \%dict );
 
     _croak( qq[error compiling accessor: $@\n $code \n] )
       if $@;
 
-    no strict 'refs';            ## no critic (ProhibitNoStrict)
-    *{$method} = $coderef;
+    return $coderef;
+}
 
-    return *{$method}{CODE};
+sub _generate_validate {
+
+    my ( $object, $package ) = @_;
+    my $code = q[
+        package <<PACKAGE>>;
+        our $validate_key = sub {
+            my ( $self, $key ) = @_;
+            return <<VALIDATE>>;
+        };
+    ];
+
+    _compile_from_tpl(
+        \$code,
+        {
+            package  => $package,
+            key      => '$key',
+            validate => _find_sub( $object, 'generate_validate' )->()
+        },
+      )
+      || _croak(
+        qq(error creating validate_key subroutine for @{[ ref $object ]}: $@\n $code )
+      );
 }
 
 sub _autoload {
 
     my ( $method, $object ) = @_;
 
-    ( my $key = $method ) =~ s/.*:://;
+    my ( $package, $key ) = $method =~ /(.*)::(.*)/;
 
-    _croak( qq[Can't locate class method "$key" via package @{[ ref $object]} \n] )
-      unless  Scalar::Util::blessed( $object );
+    _croak(
+        qq[Can't locate class method "$key" via package @{[ ref $object]} \n] )
+      unless Scalar::Util::blessed( $object );
 
     # we're here because there's no slot in the hash for $key.
     #
-    unless ( _find_sub( $object, 'validate_key' )->( $object, $key ) ) {
-        _croak(
-            qq[Can't locate object method "$key" via package @{[ ref $object]} \n]
-        );
-    }
+    my $validate = _find_sub( $object, 'validate_key', 0 );
 
-    _generate_accessor( $object, $method, $key );
+    $validate = _generate_validate( $object, $package )
+      if ! defined $validate;
+
+    _croak(
+        qq[Can't locate object method "$key" via package @{[ ref $object]} \n] )
+      unless $validate->( $object, $key );
+
+    _generate_accessor( $object, $package, $key );
 }
 
 
@@ -230,13 +264,6 @@ sub _generate_wrap_hash {
     ];
     #>>>
 
-    _interpolate( \$code,
-                  precode => join( "\n", @pre_code ),
-                  construct => $construct,
-                  postcode => join( "\n", @post_code ),
-                );
-
-
     # clean out the rest of the known attributes
     delete @{$args}{qw[ -lvalue -create -class -fields ]};
 
@@ -245,8 +272,18 @@ sub _generate_wrap_hash {
             __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
     }
 
-    return eval( $code ) ## no critic (ProhibitStringyEval)
-      || _croak( "error generating wrap_hash subroutine: $@" );
+    _interpolate(
+        \$code,
+        {
+            precode   => join( "\n", @pre_code ),
+            construct => $construct,
+            postcode  => join( "\n", @post_code ),
+        },
+    );
+
+    return eval( $code )    ## no critic (ProhibitStringyEval)
+      || _croak( "error generating wrap_hash subroutine: $@\n$code" );
+
 }
 
 # our bizarre little role emulator.  except our roles have no methods, just lexical subs.  whee!
@@ -669,5 +706,3 @@ throwing
 =back
 
 =back
-
-
