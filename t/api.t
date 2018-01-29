@@ -69,7 +69,7 @@ SKIP: {
 
     isa_ok(
         My::Import::Default::LValue::wrap_hash( {} ),
-        ['Hash::Wrap::Class::LValue'],
+        ['Hash::Wrap::Class::lvalue'],
         "default w/ lvalue"
     );
 

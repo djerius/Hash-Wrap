@@ -9,12 +9,15 @@ use warnings;
 
 use Scalar::Util qw[ blessed ];
 use MRO::Compat;
+use Digest::SHA;
 
 our $VERSION = '0.04';
 
-use Hash::Wrap::Class;
+use Hash::Wrap::Base;
 
 our @EXPORT = qw[ wrap_hash ];
+
+my %REGISTRY;
 
 sub _croak {
 
@@ -131,22 +134,10 @@ sub import {
 
 }
 
-# default constructor
-sub _wrap_hash ($) { ## no critic (ProhibitSubroutinePrototypes)
-    my $hash = shift;
-
-    _croak( "argument to wrap_hash must be a hashref\n" )
-      unless 'HASH' eq ref $hash;
-
-    bless $hash, 'Hash::Wrap::Class';
-}
-
 sub _generate_wrap_hash {
 
     my ( $me ) = shift;
     my ( $name, $args ) = @_;
-
-    return \&_wrap_hash unless keys %$args;
 
     # closure for user provided clone sub
     my $clone;
@@ -178,95 +169,156 @@ sub _generate_wrap_hash {
     }
 
     my $class;
-    if ( defined $args->{-class} ) {
 
+    if ( defined $args->{-class} && !$args->{-create} ) {
         $class = $args->{-class};
 
-        if ( $args->{-create} ) {
+        _croak( qq[class ($class) is not a subclass of Hash::Wrap::Base\n] )
+          if !$class->isa( 'Hash::Wrap::Base' );
 
-            my $parent = $args->{-lvalue} ? 'Hash::Wrap::Base::LValue' : 'Hash::Wrap::Base';
-
-
-            my $extra = '';
-
-            if ( defined $args->{-fields} ) {
-                _croak( "must specify fields as an arrayref\n" )
-                  if ref $args->{-fields} ne 'HASH';
-
-                require B;
-                $extra .= 'use fields (' . join( ',', map { B::perlstring( $_ ) } @{$args->{-fields}} ) . ');';
-            }
-
-            ## no critic (ProhibitStringyEval)
-            eval( qq[ { package $class; use parent '$parent'; $extra } 1; ] )
-              or _croak( "error generating on-the-fly class $class: $@" );
-
-            delete $args->{-create};
+        if ( $args->{-lvalue} ) {
+            my $signature = _find_generator( $class, 'signature' )->();
+            _croak( "signature generator for $class does not add ':lvalue'\n" )
+              unless defined $signature && $signature =~ /:\s*lvalue/;
         }
-        elsif ( !$class->isa( 'Hash::Wrap::Base' ) ) {
-            _croak(
-                qq[class ($class) is not a subclass of Hash::Wrap::Base\n]
-            );
-        }
-        else{
-
-            if ( $args->{-lvalue} ) {
-                my $signature = _find_generator( $class, 'signature' )->();
-                _croak( "signature generator for $class does not add ':lvalue'\n" )
-                  unless $signature =~ /:\s*lvalue/;
-            }
-        }
-
-        delete $args->{-class};
-    }
-    elsif ( $args->{-lvalue} ) {
-        require Hash::Wrap::Class::LValue;
-        $class = 'Hash::Wrap::Class::LValue';
     }
     else {
-        require Hash::Wrap::Class;
-        $class = 'Hash::Wrap::Class';
+        $class = _build_class( $args );
     }
 
     my $construct = 'my $obj = ' . do {
 
         if ( $class->can( 'new' ) ) {
-            qq[$class->new(\$hash);]
+            qq[$class->new(\$hash);];
         }
-        elsif( $args->{-fields} ) {
-            qq[do { require fields; fields::new( $class ); } ]
+        elsif ( $args->{-fields} ) {
+            qq[do { require fields; fields::new( $class ); } ];
         }
 
         else {
-            qq[bless \$hash, '$class';]
+            qq[bless \$hash, '$class';];
         }
 
-      };
+    };
 
     #<<< no tidy
-    my $code =
-      join( "\n",
-            q[sub ($) {],
-            q[my $hash = shift;],
-            qq[if ( ! 'HASH' eq ref \$hash ) { _croak( "argument to $name must be a hashref\n" ) }],
-            @pre_code,
-            $construct,
-            @post_code,
-            q[return $obj;],
-            q[}],
-          );
+    my $code = qq[
+    sub (\$) {
+      my \$hash = shift;
+      if ( ! 'HASH' eq ref \$hash ) { _croak( "argument to $name must be a hashref\n" ) }
+      <<PRECODE>>
+      <<CONSTRUCT>>
+      <<POSTCODE>>
+      return \$obj;
+      };
+    ];
     #>>>
 
-    # easier to remove it here than in the code, as it is referenced
-    # multiple times
-    delete $args->{-lvalue};
+    _interpolate( \$code,
+                  precode => join( "\n", @pre_code ),
+                  construct => $construct,
+                  postcode => join( "\n", @post_code ),
+                );
+
+
+    # clean out the rest of the known attributes
+    delete @{$args}{qw[ -lvalue -create -class -fields ]};
+
     if ( keys %$args ) {
-        _croak( "unknown options passed to ", __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
+        _croak( "unknown options passed to ",
+            __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
     }
 
-    ## no critic (ProhibitStringyEval)
-    return eval( $code ) || _croak( "error generating wrap_hash subroutine: $@" );
+    return eval( $code ) ## no critic (ProhibitStringyEval)
+      || _croak( "error generating wrap_hash subroutine: $@" );
+}
 
+# our bizarre little role emulator.  except our roles have no methods, just lexical subs.  whee!
+sub _build_class {
+
+    my $attr = shift;
+
+    my $class = $attr->{-class};
+
+    if ( !defined $class ) {
+
+        my @class = map { s/-//; $_ } sort keys %$attr;
+
+        if ( $attr->{-fields} ) {
+            push @class, sha256_hex( join( $;, sort @{ $attr->{-fields} } ) );
+        }
+
+        $class = join '::', 'Hash::Wrap::Class', @class;
+    }
+
+    return $class if $REGISTRY{$class};
+
+    my %code = (
+        class         => $class,
+        signature     => '',
+        body          => '',
+        autoload_attr => '',
+        fields        => '',
+        validate      => '',
+    );
+
+    if ( $attr->{-lvalue} ) {
+
+        $code{autoload_attr} = ': lvalue';
+        $code{signature} = 'our $generate_signature = sub { q[: lvalue]; };';
+    }
+
+    if ( $attr->{-fields} ) {
+        _croak( "must specify fields as an arrayref\n" )
+          if ref $attr->{-fields} ne 'ARRAY';
+
+        require B;
+        $code{fields}
+          = "use fields qw( @{[ join( ',', map { B::perlstring( $_ ) } @{ $attr->{-fields} } ) ]} );";
+    }
+
+    my $class_template = <<'END';
+package <<CLASS>>;
+
+use Scalar::Util ();
+
+<<FIELDS>>
+our @ISA = ( 'Hash::Wrap::Base' );
+
+<<SIGNATURE>>
+
+<<BODY>>
+
+<<VALIDATE>>
+
+our $AUTOLOAD;
+sub AUTOLOAD <<AUTOLOAD_ATTR>> {
+    goto &{ Hash::Wrap::_autoload( $AUTOLOAD, $_[0] ) };
+}
+
+1;
+END
+    _interpolate( \$class_template, %code );
+
+    eval( $class_template )
+      or _croak( "error generating class $class: $@" );
+
+
+    $REGISTRY{$class}++;
+
+    return $class;
+}
+
+sub _interpolate {
+
+    my ( $tpl, %dict ) = @_;
+
+    $$tpl =~ s{ \<\<(\w+)\>\>
+              }{
+                  my $key = lc $1;
+                  $dict{$key}
+              }gex;
+    return;
 }
 
 
