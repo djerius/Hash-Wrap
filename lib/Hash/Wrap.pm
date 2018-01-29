@@ -27,8 +27,9 @@ sub _croak {
 
 sub _find_sub {
 
-    my ( $object, $sub ) = @_;
+    my ( $object, $sub, $throw ) = @_;
 
+    $throw = 1 unless defined $throw;
     my $package = blessed( $object ) || $object;
 
     no strict 'refs';  ## no critic (ProhibitNoStrict)
@@ -42,8 +43,7 @@ sub _find_sub {
         return $$candidate if defined $candidate && 'CODE' eq ref $$candidate;
     }
 
-    _croak( "Unable to find sub reference \$$sub for class $package\n" );
-
+    $throw ? _croak( "Unable to find sub reference \$$sub for class $package\n" ) : return;
 }
 
 # this is called only if the method doesn't exist.
