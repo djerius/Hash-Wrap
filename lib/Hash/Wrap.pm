@@ -295,7 +295,7 @@ sub _build_class {
 
     if ( !defined $class ) {
 
-        my @class = map { (my $attr = $_)  =~ s/-//; $attr } sort keys %$attr;
+        my @class = map { ( my $attr = $_ ) =~ s/-//; $attr } sort keys %$attr;
 
         if ( $attr->{-fields} ) {
             push @class, sha256_hex( join( $;, sort @{ $attr->{-fields} } ) );
