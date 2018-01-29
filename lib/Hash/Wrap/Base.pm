@@ -37,6 +37,13 @@ our $generate_body = sub {
 };
 
 
+our $validate_key = sub {
+
+    my ( $object, $key ) = @_;
+
+    return exists $object->{$key};
+};
+
 =begin pod_coverage
 
 =head3 can

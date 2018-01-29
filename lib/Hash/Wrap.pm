@@ -86,8 +86,13 @@ sub _autoload {
     _croak( qq[Can't locate class method "$key" via package @{[ ref $object]} \n] )
       unless  Scalar::Util::blessed( $object );
 
-    _croak( qq[Can't locate object method "$key" via package @{[ ref $object]} \n] )
-      unless exists $object->{$key};
+    # we're here because there's no slot in the hash for $key.
+    #
+    unless ( _find_sub( $object, 'validate_key' )->( $object, $key ) ) {
+        _croak(
+            qq[Can't locate object method "$key" via package @{[ ref $object]} \n]
+        );
+    }
 
     _generate_accessor( $object, $method, $key );
 }
