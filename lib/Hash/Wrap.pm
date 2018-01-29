@@ -240,10 +240,6 @@ sub _generate_wrap_hash {
         if ( $class->can( 'new' ) ) {
             qq[$class->new(\$hash);];
         }
-        elsif ( $args->{-fields} ) {
-            qq[do { require fields; fields::new( $class ); } ];
-        }
-
         else {
             qq[bless \$hash, '$class';];
         }
@@ -264,7 +260,7 @@ sub _generate_wrap_hash {
     #>>>
 
     # clean out the rest of the known attributes
-    delete @{$args}{qw[ -lvalue -create -class -fields -undef ]};
+    delete @{$args}{qw[ -lvalue -create -class -undef ]};
 
     if ( keys %$args ) {
         _croak( "unknown options passed to ",
@@ -296,10 +292,6 @@ sub _build_class {
 
         my @class = map { ( my $attr = $_ ) =~ s/-//; $attr } sort keys %$attr;
 
-        if ( $attr->{-fields} ) {
-            push @class, join( $;, sort @{ $attr->{-fields} } );
-        }
-
         $class = join '::', 'Hash::Wrap::Class', @class;
     }
 
@@ -310,7 +302,6 @@ sub _build_class {
         signature     => '',
         body          => '',
         autoload_attr => '',
-        fields        => '',
         validate      => '',
     );
 
@@ -318,15 +309,6 @@ sub _build_class {
 
         $code{autoload_attr} = ': lvalue';
         $code{signature} = 'our $generate_signature = sub { q[: lvalue]; };';
-    }
-
-    if ( $attr->{-fields} ) {
-        _croak( "must specify fields as an arrayref\n" )
-          if ref $attr->{-fields} ne 'ARRAY';
-
-        require B;
-        $code{fields}
-          = "use fields qw( @{[ join( ',', map { B::perlstring( $_ ) } @{ $attr->{-fields} } ) ]} );";
     }
 
     if ( $attr->{-undef} ) {
@@ -338,7 +320,6 @@ package <<CLASS>>;
 
 use Scalar::Util ();
 
-<<FIELDS>>
 our @ISA = ( 'Hash::Wrap::Base' );
 
 <<SIGNATURE>>
