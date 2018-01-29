@@ -265,7 +265,7 @@ sub _generate_wrap_hash {
     #>>>
 
     # clean out the rest of the known attributes
-    delete @{$args}{qw[ -lvalue -create -class -fields ]};
+    delete @{$args}{qw[ -lvalue -create -class -fields -undef ]};
 
     if ( keys %$args ) {
         _croak( "unknown options passed to ",
@@ -328,6 +328,10 @@ sub _build_class {
         require B;
         $code{fields}
           = "use fields qw( @{[ join( ',', map { B::perlstring( $_ ) } @{ $attr->{-fields} } ) ]} );";
+    }
+
+    if ( $attr->{-undef} ) {
+        $code{validate} = q[ our $generate_validate = sub { '1' }; ];
     }
 
     my $class_template = <<'END';
@@ -421,8 +425,10 @@ __END__
 
 This module provides constructors which create light-weight objects
 from existing hashes, allowing access to hash elements via methods
-(and thus avoiding typos). Attempting to access a non-existent element
-via a method will result in an exception.
+(and thus avoiding typos). By default, attempting to access a
+non-existent element via a method will result in an exception, but
+this may be modified so that the undefined value is returned (see
+L</-undef>).
 
 Hash elements may be added to or deleted from the object after
 instantiation using the standard Perl hash operations, and changes
@@ -448,6 +454,13 @@ The methods act as both accessors and setters, e.g.
 
 Only hash keys which are legal method names will be accessible via
 object methods.
+
+Accessors may optionally be used as lvalues, e.g.,
+
+  $obj->a = 3;
+
+in Perl version 5.16 or later. See L</-lvalue>.
+
 
 =head2 Object construction and constructor customization
 
@@ -501,6 +514,13 @@ is used. If a coderef, it will be called as
 
 By default, the object uses the hash directly.
 
+=item C<-undef> => I<boolean>
+
+Normally an attempt to use an accessor for an non-existent key will
+result in an exception.  The C<-undef> option causes the accessor
+to return C<undef> instead.  It does I<not> create an element in
+the hash for the key.
+
 =item C<-lvalue> => I<boolean>
 
 If true, the accessors will be lvalue routines, e.g. they can
@@ -511,7 +531,7 @@ change the underlying hash value by assigning to them:
 The hash entry must already exist before using the accessor in
 this manner, or it will throw an exception.
 
-This is only available on Perl 5.16 and higher.
+This is only available on Perl version 5.16 and later.
 
 =back
 
