@@ -56,22 +56,34 @@ sub _generate_accessor {
     my ( $signature, $body ) = map _find_sub( $object, "generate_$_" ),
       qw[ signature body ];
 
-    my $sub
-      = "sub "
-      . $signature->( $object, $method, $key ) . "{\n"
-      . $body->( $object, $method, $key ) . "\n}\n";
-
-    ## no critic (ProhibitNoStrict)
-    no strict 'refs';
-
     # $code = eval "sub : lvalue { ... }" will invoke the sub as it is
-    # used as an rvalue inside of the eval.
+    # used as an lvalue inside of the eval, so set it equal to a variable
+    # to ensure it's an rvalue
 
-    ## no critic (ProhibitStringyEval)
-    my $coderef = eval qq[do { package $package; my \$coderef = $sub  }];
-    _croak( qq[error compiling accessor: $@\n $sub \n] )
+    my $code = q[
+      do {
+        package <<PACKAGE>>;
+        my $coderef =
+          sub <<SIGNATURE>> {
+            <<BODY>>
+          }
+      }
+    ];
+
+    _interpolate(
+        \$code,
+        package   => $package,
+        signature => $signature->( $object, $method, $key ),
+        body      => $body->( $object, $method, $key ),
+    );
+
+
+    my $coderef = eval $code;    ## no critic (ProhibitStringyEval)
+
+    _croak( qq[error compiling accessor: $@\n $code \n] )
       if $@;
 
+    no strict 'refs';            ## no critic (ProhibitNoStrict)
     *{$method} = $coderef;
 
     return *{$method}{CODE};
