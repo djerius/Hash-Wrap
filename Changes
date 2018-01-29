@@ -2,6 +2,12 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.05      2018-01-29 11:59:46-05:00 America/New_York
+
+  [BUILD FIX]
+
+    * t/api.t was not completely updated for changes in version 0.04
+
 0.04      2018-01-29 11:59:46-05:00 America/New_York
 
   [ENHANCEMENT]
