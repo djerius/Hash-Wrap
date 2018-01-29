@@ -17,7 +17,6 @@ my %WriteMakefileArgs = (
   "MIN_PERL_VERSION" => "5.008009",
   "NAME" => "Hash::Wrap",
   "PREREQ_PM" => {
-    "Hash::Util" => 0,
     "MRO::Compat" => 0,
     "Scalar::Util" => 0
   },
@@ -40,7 +39,6 @@ my %WriteMakefileArgs = (
 my %FallbackPrereqs = (
   "ExtUtils::MakeMaker" => 0,
   "File::Spec" => 0,
-  "Hash::Util" => 0,
   "IO::Handle" => 0,
   "IPC::Open3" => 0,
   "MRO::Compat" => 0,
