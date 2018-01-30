@@ -175,7 +175,7 @@ sub import {
 
         my $name = exists $args->{-as} ? delete $args->{-as} : 'wrap_hash';
 
-        my $sub = _generate_wrap_hash( $me, $name, {%$args} );
+        my $sub = _generate_wrap_hash( $me, $name, $args );
 
         no strict 'refs';    ## no critic (ProhibitNoStrict)
         *{"$caller\::$name"} = $sub;
