@@ -2,6 +2,13 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.06      2018-01-29 11:59:46-05:00 America/New_York
+
+  [ENHANCEMENT]
+
+    * new options -exists and -undefined add exists() and defined()
+      methods.
+
 0.05      2018-01-29 11:59:46-05:00 America/New_York
 
   [BUILD FIX]
