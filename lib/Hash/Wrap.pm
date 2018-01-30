@@ -10,7 +10,7 @@ use warnings;
 use Scalar::Util qw[ blessed ];
 use MRO::Compat;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use Hash::Wrap::Base;
 
