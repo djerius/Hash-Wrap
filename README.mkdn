@@ -113,6 +113,25 @@ The following options are available to customize the constructor.
 
     By default, the object uses the hash directly.
 
+- `-defined` => _boolean_ | _Perl Identifier_
+
+    Add a method which returns true if the passed hash key is defined or
+    does not exist. If `-defined` is a boolean, the method will be called
+    `defined`. Otherwise it specifies the name of the method. For
+    example,
+
+        use Hash::Wrap { -exists => 1 };
+        $obj = wrap_hash( { a => 1, b => undef } );
+
+        $obj->defined( 'a' ); # TRUE
+        $obj->defined( 'b' ); # FALSE
+        $obj->defined( 'c' ); # FALSE
+
+    or
+       use Hash::Wrap { -exists => 'is\_defined' };
+       $obj = wrap\_hash( { a => 1 } );
+       $obj->is\_defined( 'a' );
+
 - `-exists` => _boolean_ | _Perl Identifier_
 
     Add a method which returns true if the passed hash key exists. If

@@ -260,7 +260,7 @@ sub _generate_wrap_hash {
     #>>>
 
     # clean out the rest of the known attributes
-    delete @{$args}{qw[ -lvalue -create -class -undef -exists ]};
+    delete @{$args}{qw[ -lvalue -create -class -undef -exists -defined ]};
 
     if ( keys %$args ) {
         _croak( "unknown options passed to ",
@@ -298,7 +298,7 @@ sub _build_class {
 
             # -exists can specify the name of its method
             $key .= $attr->{$_}
-              if $key eq 'exists' && $attr->{$_} =~ PerlIdentifier;
+              if $key eq 'exists' or $key eq 'defined' && $attr->{$_} =~ PerlIdentifier;
 
             $key
         } sort keys %$attr;
@@ -329,6 +329,11 @@ sub _build_class {
     if ( $attr->{-exists} ) {
         $dict{exists} = $attr->{-exists} =~  PerlIdentifier ? $1 : 'exists';
         push @{$dict{body}}, q[ sub <<EXISTS>> { exists $_[0]->{$_[1] } } ];
+    }
+
+    if ( $attr->{-defined} ) {
+        $dict{defined} = $attr->{-defined} =~  PerlIdentifier ? $1 : 'defined';
+        push @{$dict{body}}, q[ sub <<DEFINED>> { defined $_[0]->{$_[1] } } ];
     }
 
     my $class_template = <<'END';
@@ -513,6 +518,26 @@ is used. If a coderef, it will be called as
    $clone = coderef->( $hash )
 
 By default, the object uses the hash directly.
+
+=item C<-defined> => I<boolean> | I<Perl Identifier>
+
+Add a method which returns true if the passed hash key is defined or
+does not exist. If C<-defined> is a boolean, the method will be called
+C<defined>. Otherwise it specifies the name of the method. For
+example,
+
+   use Hash::Wrap { -exists => 1 };
+   $obj = wrap_hash( { a => 1, b => undef } );
+
+   $obj->defined( 'a' ); # TRUE
+   $obj->defined( 'b' ); # FALSE
+   $obj->defined( 'c' ); # FALSE
+
+or
+   use Hash::Wrap { -exists => 'is_defined' };
+   $obj = wrap_hash( { a => 1 } );
+   $obj->is_defined( 'a' );
+
 
 =item C<-exists> => I<boolean> | I<Perl Identifier>
 
