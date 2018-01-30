@@ -113,6 +113,21 @@ The following options are available to customize the constructor.
 
     By default, the object uses the hash directly.
 
+- `-exists` => _boolean_ | _Perl Identifier_
+
+    Add a method which returns true if the passed hash key exists. If
+    `-exists` is a boolean, the method will be called
+    `exists`. Otherwise it specifies the name of the method. For example,
+
+        use Hash::Wrap { -exists => 1 };
+        $obj = wrap_hash( { a => 1 } );
+        $obj->exists( 'a' );
+
+    or
+       use Hash::Wrap { -exists => 'is\_present' };
+       $obj = wrap\_hash( { a => 1 } );
+       $obj->is\_present( 'a' );
+
 - `-undef` => _boolean_
 
     Normally an attempt to use an accessor for an non-existent key will
@@ -168,7 +183,8 @@ Here's a comparison of this module and others on CPAN.
     - core dependencies only
     - only applies object paradigm to top level hash
     - accessors may be lvalue subroutines
-    - accessing a non-existing element via an accessor throws
+    - accessing a non-existing element via an accessor
+    throws by default, but can optionally return `undef`
     - can use custom package
     - can copy/clone existing hash. clone may be customized
 - [Object::Result](https://metacpan.org/pod/Object::Result)

@@ -260,7 +260,7 @@ sub _generate_wrap_hash {
     #>>>
 
     # clean out the rest of the known attributes
-    delete @{$args}{qw[ -lvalue -create -class -undef ]};
+    delete @{$args}{qw[ -lvalue -create -class -undef -exists ]};
 
     if ( keys %$args ) {
         _croak( "unknown options passed to ",
@@ -281,6 +281,9 @@ sub _generate_wrap_hash {
 
 }
 
+# copied from Damian Conway's PPR: PerlIdentifier
+use constant PerlIdentifier => qr/([^\W\d]\w*+)/;
+
 # our bizarre little role emulator.  except our roles have no methods, just lexical subs.  whee!
 sub _build_class {
 
@@ -290,29 +293,42 @@ sub _build_class {
 
     if ( !defined $class ) {
 
-        my @class = map { ( my $attr = $_ ) =~ s/-//; $attr } sort keys %$attr;
+        my @class = map {
+            ( my $key = $_ ) =~ s/-//;
+
+            # -exists can specify the name of its method
+            $key .= $attr->{$_}
+              if $key eq 'exists' && $attr->{$_} =~ PerlIdentifier;
+
+            $key
+        } sort keys %$attr;
 
         $class = join '::', 'Hash::Wrap::Class', @class;
     }
 
     return $class if $REGISTRY{$class};
 
-    my %code = (
+    my %dict = (
         class         => $class,
         signature     => '',
-        body          => '',
+        body          => [],
         autoload_attr => '',
         validate      => '',
     );
 
     if ( $attr->{-lvalue} ) {
 
-        $code{autoload_attr} = ': lvalue';
-        $code{signature} = 'our $generate_signature = sub { q[: lvalue]; };';
+        $dict{autoload_attr} = ': lvalue';
+        $dict{signature} = 'our $generate_signature = sub { q[: lvalue]; };';
     }
 
     if ( $attr->{-undef} ) {
-        $code{validate} = q[ our $generate_validate = sub { '1' }; ];
+        $dict{validate} = q[ our $generate_validate = sub { '1' }; ];
+    }
+
+    if ( $attr->{-exists} ) {
+        $dict{exists} = $attr->{-exists} =~  PerlIdentifier ? $1 : 'exists';
+        push @{$dict{body}}, q[ sub <<EXISTS>> { exists $_[0]->{$_[1] } } ];
     }
 
     my $class_template = <<'END';
@@ -336,7 +352,7 @@ sub AUTOLOAD <<AUTOLOAD_ATTR>> {
 1;
 END
 
-    _compile_from_tpl( \$class_template, \%code )
+    _compile_from_tpl( \$class_template, \%dict )
       or _croak( "error generating class $class: $@\n$class_template" );
 
     $REGISTRY{$class}++;
@@ -363,6 +379,10 @@ sub _interpolate {
                   my $key = lc $1;
                   my $v = $dict->{$key};
                   if ( defined $v ) {
+
+                      $v = join( "\n", @$v )
+                        if 'ARRAY' eq ref $v;
+
                       _croak( "circular interpolation loop detected for $key\n" )
                         if $work->{loop}{$key}++;
                       _interpolate( \$v, $dict, $work );
@@ -493,6 +513,22 @@ is used. If a coderef, it will be called as
    $clone = coderef->( $hash )
 
 By default, the object uses the hash directly.
+
+=item C<-exists> => I<boolean> | I<Perl Identifier>
+
+Add a method which returns true if the passed hash key exists. If
+C<-exists> is a boolean, the method will be called
+C<exists>. Otherwise it specifies the name of the method. For example,
+
+   use Hash::Wrap { -exists => 1 };
+   $obj = wrap_hash( { a => 1 } );
+   $obj->exists( 'a' );
+
+or
+   use Hash::Wrap { -exists => 'is_present' };
+   $obj = wrap_hash( { a => 1 } );
+   $obj->is_present( 'a' );
+
 
 =item C<-undef> => I<boolean>
 
