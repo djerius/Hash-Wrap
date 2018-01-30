@@ -16,6 +16,8 @@ use Hash::Wrap::Base;
 
 our @EXPORT = qw[ wrap_hash ];
 
+our @CARP_NOT = qw( Hash::Base );
+
 my %REGISTRY;
 
 sub _croak {
@@ -42,7 +44,7 @@ sub _find_sub {
         return $$candidate if defined $candidate && 'CODE' eq ref $$candidate;
     }
 
-    $throw ? _croak( "Unable to find sub reference \$$sub for class $package\n" ) : return;
+    $throw ? _croak( "Unable to find sub reference \$$sub for class $package" ) : return;
 }
 
 # this is called only if the method doesn't exist.
@@ -63,12 +65,12 @@ sub _generate_accessor {
 
          unless ( Scalar::Util::blessed( $self ) ) {
            require Carp;
-           Carp::croak( qq[Can't locate object method "<<KEY>>" via package $self \n] );
+           Carp::croak( qq[Can't locate object method "<<KEY>>" via package $self] );
          }
 
          unless ( <<VALIDATE>> ) {
            require Carp;
-           Carp::croak( qq[Can't locate object method "<<KEY>>" via package @{[ Scalar::Util::blessed( $self ) ]} \n] );
+           Carp::croak( qq[Can't locate object method "<<KEY>>" via package @{[ Scalar::Util::blessed( $self ) ]}] );
          }
 
         $self->{q[<<KEY>>]} = $_[0] if @_;
@@ -88,7 +90,7 @@ sub _generate_accessor {
 
     my $coderef = _compile_from_tpl( \$code, \%dict );
 
-    _croak( qq[error compiling accessor: $@\n $code \n] )
+    _croak( qq[error compiling accessor: $@\n $code] )
       if $@;
 
     return $coderef;
@@ -125,7 +127,7 @@ sub _autoload {
     my ( $package, $key ) = $method =~ /(.*)::(.*)/;
 
     _croak(
-        qq[Can't locate class method "$key" via package @{[ ref $object]} \n] )
+        qq[Can't locate class method "$key" via package @{[ ref $object]}] )
       unless Scalar::Util::blessed( $object );
 
     # we're here because there's no slot in the hash for $key.
@@ -136,7 +138,7 @@ sub _autoload {
       if ! defined $validate;
 
     _croak(
-        qq[Can't locate object method "$key" via package @{[ ref $object]} \n] )
+        qq[Can't locate object method "$key" via package @{[ ref $object]}] )
       unless $validate->( $object, $key );
 
     _generate_accessor( $object, $package, $key );
@@ -155,7 +157,7 @@ sub import {
     for my $args ( @imports ) {
 
         if ( !ref $args ) {
-            _croak( "$args is not exported by ", __PACKAGE__, "\n" )
+            _croak( "$args is not exported by ", __PACKAGE__ )
               unless grep { /$args/ } @EXPORT;
 
             $args = { -as => $args };
@@ -165,7 +167,7 @@ sub import {
             _croak(
                 "argument to ",
                 __PACKAGE__,
-                "::import must be string or hash\n"
+                "::import must be string or hash"
             ) unless grep { /$args/ } @EXPORT;
         }
         else {
@@ -193,10 +195,10 @@ sub _generate_wrap_hash {
 
     my ( @pre_code, @post_code );
 
-    _croak( "lvalue accessors require Perl 5.16 or later\n" )
+    _croak( "lvalue accessors require Perl 5.16 or later" )
       if $args->{-value} && $] lt '5.016000';
 
-    _croak( "cannot mix -copy and -clone\n" )
+    _croak( "cannot mix -copy and -clone" )
       if exists $args->{-copy} && exists $args->{-clone};
 
 
@@ -222,12 +224,12 @@ sub _generate_wrap_hash {
     if ( defined $args->{-class} && !$args->{-create} ) {
         $class = $args->{-class};
 
-        _croak( qq[class ($class) is not a subclass of Hash::Wrap::Base\n] )
+        _croak( qq[class ($class) is not a subclass of Hash::Wrap::Base] )
           unless $class->isa( 'Hash::Wrap::Base' );
 
         if ( $args->{-lvalue} ) {
             my $signature = _find_sub( $class, 'generate_signature' )->();
-            _croak( "signature generator for $class does not add ':lvalue'\n" )
+            _croak( "signature generator for $class does not add ':lvalue'" )
               unless defined $signature && $signature =~ /:\s*lvalue/;
         }
     }
@@ -250,7 +252,7 @@ sub _generate_wrap_hash {
     my $code = qq[
     sub (\$) {
       my \$hash = shift;
-      if ( ! 'HASH' eq ref \$hash ) { _croak( "argument to $name must be a hashref\n" ) }
+      if ( ! 'HASH' eq ref \$hash ) { _croak( "argument to $name must be a hashref" ) }
       <<PRECODE>>
       <<CONSTRUCT>>
       <<POSTCODE>>
@@ -264,7 +266,7 @@ sub _generate_wrap_hash {
 
     if ( keys %$args ) {
         _croak( "unknown options passed to ",
-            __PACKAGE__, "::import: ", join( ', ', keys %$args ), "\n" );
+            __PACKAGE__, "::import: ", join( ', ', keys %$args ) );
     }
 
     _interpolate(
@@ -360,6 +362,7 @@ END
     _compile_from_tpl( \$class_template, \%dict )
       or _croak( "error generating class $class: $@\n$class_template" );
 
+    push @CARP_NOT, $class;
     $REGISTRY{$class}++;
 
     return $class;
@@ -388,7 +391,7 @@ sub _interpolate {
                       $v = join( "\n", @$v )
                         if 'ARRAY' eq ref $v;
 
-                      _croak( "circular interpolation loop detected for $key\n" )
+                      _croak( "circular interpolation loop detected for $key" )
                         if $work->{loop}{$key}++;
                       _interpolate( \$v, $dict, $work );
                       --$work->{loop}{$key};
