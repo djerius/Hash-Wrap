@@ -553,6 +553,7 @@ C<exists>. Otherwise it specifies the name of the method. For example,
    $obj->exists( 'a' );
 
 or
+
    use Hash::Wrap { -exists => 'is_present' };
    $obj = wrap_hash( { a => 1 } );
    $obj->is_present( 'a' );
