@@ -65,7 +65,7 @@ sub _generate_accessor {
 
          unless ( Scalar::Util::blessed( $self ) ) {
            require Carp;
-           Carp::croak( qq[Can't locate object method "<<KEY>>" via package $self] );
+           Carp::croak( qq[Can't locate class method "<<KEY>>" via package $self] );
          }
 
          unless ( <<VALIDATE>> ) {
