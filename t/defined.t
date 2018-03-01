@@ -26,7 +26,7 @@ subtest "default" => sub {
     ok( $obj->defined( 'a' ),  "a defined" );
     ok( !$obj->defined( 'b' ), "existant undefined is not defined" );
     ok( !$obj->defined( 'd' ), "non-existant is not defined" );
-    ok( ! defined $hash{d}, "defined doesn't autovivify" );
+    ok( ! exists $hash{d}, "defined doesn't autovivify" );
 };
 
 subtest "rename" => sub {
@@ -37,7 +37,7 @@ subtest "rename" => sub {
     ok( $obj->foo( 'a' ),  "a foo" );
     ok( !$obj->foo( 'b' ), "existant unfoo is not foo" );
     ok( !$obj->foo( 'd' ), "non-existant is not foo" );
-    ok( ! defined $hash{d}, "foo doesn't autovivify" );
+    ok( ! exists $hash{d}, "foo doesn't autovivify" );
 };
 
 done_testing;
