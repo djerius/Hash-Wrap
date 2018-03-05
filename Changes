@@ -2,6 +2,40 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+  [API BREAKAGE]
+
+    * Perl 5.10 is now the minimum version supported
+
+    * the -create option is no longer available.  wrapper classes
+      are always created.
+
+    * modifying existing classes via -class is no longer supported
+      as it proved too messy.
+
+    * classes no longer subclass from Hash::Wrap::Base.
+
+  [ENHANCEMENT]
+
+    * stand alone wrapper classes are now possible via -base
+
+    * wrapper classes can have real constructors via -new
+
+    * documentation has been rewritten (again!)
+
+    * wrapper classes can be subclassed
+
+  [INTERNALS]
+
+    * much code refactoring
+
+    * accessor generation is now much simpler and subsequently faster.
+
+    * construction of the wrapper classes is simplified (no more searching
+      parent classes for validation and signature subroutinesbuilders), so
+      mro::compat is not required.
+
+
+
 0.07      2018-01-29 11:59:46-05:00 America/New_York
 
   [ENHANCEMENT]

@@ -1,22 +1,20 @@
 package Hash::Wrap;
 
-# ABSTRACT: create lightweight on-the-fly objects from hashes
+# ABSTRACT: create on-the-fly objects from hashes
 
-use 5.008009;
+use 5.01000;
 
 use strict;
 use warnings;
 
-use Scalar::Util qw[ blessed ];
-use MRO::Compat;
-
+use Scalar::Util qw[ blessed reftype ];
+use Digest::MD5;
 our $VERSION = '0.08';
-
-use Hash::Wrap::Base;
 
 our @EXPORT = qw[ wrap_hash ];
 
-our @CARP_NOT = qw( Hash::Base );
+our @CARP_NOT = qw( Hash::Wrap );
+our $DEBUG    = 0;
 
 my %REGISTRY;
 
@@ -26,128 +24,65 @@ sub _croak {
     Carp::croak( @_ );
 }
 
-sub _find_sub {
+sub _find_symbol {
 
-    my ( $object, $sub, $throw ) = @_;
+    my ( $package, $symbol, $reftype ) = @_;
 
-    $throw = 1 unless defined $throw;
-    my $package = blessed( $object ) || $object;
+    no strict 'refs';    ## no critic (ProhibitNoStrict)
 
-    no strict 'refs';  ## no critic (ProhibitNoStrict)
+    my $candidate = *{"$package\::$symbol"}{SCALAR};
 
+    return $$candidate
+      if defined $candidate
+      && 2 ==
+      grep { defined $_->[0] && defined $_->[1] ? $_->[0] eq $_->[1] : 1 }
+      [ $reftype->[0], reftype $candidate ],
+      [ $reftype->[1], reftype $$candidate ];
 
-    my $mro = mro::get_linear_isa( $package );
-
-    for my $module ( @$mro ) {
-        my $candidate = *{"$module\::$sub"}{SCALAR};
-
-        return $$candidate if defined $candidate && 'CODE' eq ref $$candidate;
-    }
-
-    $throw ? _croak( "Unable to find sub reference \$$sub for class $package" ) : return;
+    _croak( "Unable to find scalar \$$symbol in class $package" );
 }
 
 # this is called only if the method doesn't exist.
 sub _generate_accessor {
 
-    my ( $object, $package, $key ) = @_;
-
-    # $code = eval "sub : lvalue { ... }" will invoke the sub as it is
-    # used as an lvalue inside of the eval, so set it equal to a variable
-    # to ensure it's an rvalue
-
-    my $code = q[
-        package <<PACKAGE>>;
-        use Scalar::Util ();
-
-       sub <<KEY>> <<SIGNATURE>> {
-         my $self = shift;
-
-         unless ( Scalar::Util::blessed( $self ) ) {
-           require Carp;
-           Carp::croak( qq[Can't locate class method "<<KEY>>" via package $self] );
-         }
-
-         unless ( <<VALIDATE>> ) {
-           require Carp;
-           Carp::croak( qq[Can't locate object method "<<KEY>>" via package @{[ Scalar::Util::blessed( $self ) ]}] );
-         }
-
-        $self->{q[<<KEY>>]} = $_[0] if @_;
-
-        return $self->{q[<<KEY>>]};
-       }
-       \&<<KEY>>;
-    ];
+    my ( $hash_class, $object, $class, $key ) = @_;
 
     my %dict = (
-        package => $package,
-        key     => $key,
+        key   => $key,
+        class => $class,
     );
 
-    $dict{$_} = _find_sub( $object, "generate_$_" )->()
-      for  qw[ validate signature ];
+    my $code = $REGISTRY{$hash_class}{accessor_template};
 
     my $coderef = _compile_from_tpl( \$code, \%dict );
 
-    _croak( qq[error compiling accessor: $@\n $code] )
+    _croak_about_code( \$code, 'accessor' )
       if $@;
 
     return $coderef;
 }
 
-sub _generate_validate {
-
-    my ( $object, $package ) = @_;
-    my $code = q[
-        package <<PACKAGE>>;
-        our $validate_key = sub {
-            my ( $self, $key ) = @_;
-            return <<VALIDATE>>;
-        };
-    ];
-
-    _compile_from_tpl(
-        \$code,
-        {
-            package  => $package,
-            key      => '$key',
-            validate => _find_sub( $object, 'generate_validate' )->()
-        },
-      )
-      || _croak(
-        qq(error creating validate_key subroutine for @{[ ref $object ]}: $@\n $code )
-      );
-}
-
 sub _autoload {
 
-    my ( $method, $object ) = @_;
+    my ( $hash_class, $method, $object ) = @_;
 
-    my ( $package, $key ) = $method =~ /(.*)::(.*)/;
+    my ( $class, $key ) = $method =~ /(.*)::(.*)/;
 
-    _croak(
-        qq[Can't locate class method "$key" via package @{[ ref $object]}] )
+    _croak( qq[Can't locate class method "$key" via package @{[ ref $object]}] )
       unless Scalar::Util::blessed( $object );
-
-    # we're here because there's no slot in the hash for $key.
-    #
-    my $validate = _find_sub( $object, 'validate_key', 0 );
-
-    $validate = _generate_validate( $object, $package )
-      if ! defined $validate;
 
     _croak(
         qq[Can't locate object method "$key" via package @{[ ref $object]}] )
-      unless $validate->( $object, $key );
+      unless $REGISTRY{$hash_class}{validate}->( $object, $key );
 
-    _generate_accessor( $object, $package, $key );
+    _generate_accessor( $hash_class, $object, $class, $key );
 }
 
 
 sub import {
 
-    my ( $me ) = shift;
+    shift;
+
     my $caller = caller;
 
     my @imports = @_;
@@ -172,170 +107,98 @@ sub import {
         }
         else {
             # make a copy as it gets modified later on
-            $args = { %$args };
+            $args = {%$args};
         }
 
-        my $name = exists $args->{-as} ? delete $args->{-as} : 'wrap_hash';
+	_croak( "cannot mix -base and -class" )
+          if !!$args->{-base} && exists $args->{-class};
 
-        my $sub = _generate_wrap_hash( $me, $name, $args );
+        $DEBUG = $ENV{HASH_WRAP_DEBUG} // delete $args->{-debug} ;
 
-        no strict 'refs';    ## no critic (ProhibitNoStrict)
-        *{"$caller\::$name"} = $sub;
-    }
+        $args->{-as} = 'wrap_hash' unless exists $args->{-as};
+        my $name = delete $args->{-as};
 
-}
+        if ( $args->{-base} ) {
 
-sub _generate_wrap_hash {
-
-    my ( $me ) = shift;
-    my ( $name, $args ) = @_;
-
-    # closure for user provided clone sub
-    my $clone;
-
-    my ( @pre_code, @post_code );
-
-    _croak( "lvalue accessors require Perl 5.16 or later" )
-      if $args->{-value} && $] lt '5.016000';
-
-    _croak( "cannot mix -copy and -clone" )
-      if exists $args->{-copy} && exists $args->{-clone};
-
-
-    if ( delete $args->{-copy} ) {
-        push @pre_code, '$hash = { %{ $hash } };';
-    }
-    elsif ( exists $args->{-clone} ) {
-
-        if ( 'CODE' eq ref $args->{-clone} ) {
-            $clone = $args->{-clone};
-            push @pre_code, '$hash = $clone->($hash);';
+            $args->{-class} = $caller;
+            $args->{-new} = 1 unless !!$args->{-new};
+            _build_class( $args );
         }
+
         else {
-            require Storable;
-            push @pre_code, '$hash = Storable::dclone $hash;';
+            _build_class( $args );
+            _build_constructor( $caller, $name, $args )
+              if defined $name;
         }
 
-        delete $args->{-clone};
-    }
+        # clean out known attributes
+        delete @{$args}{
+            qw[ -base -as -class -lvalue -undef -exists -defined -new -copy -clone ]
+        };
 
-    my $class;
-
-    if ( defined $args->{-class} && !$args->{-create} ) {
-        $class = $args->{-class};
-
-        _croak( qq[class ($class) is not a subclass of Hash::Wrap::Base] )
-          unless $class->isa( 'Hash::Wrap::Base' );
-
-        if ( $args->{-lvalue} ) {
-            my $signature = _find_sub( $class, 'generate_signature' )->();
-            _croak( "signature generator for $class does not add ':lvalue'" )
-              unless defined $signature && $signature =~ /:\s*lvalue/;
+        if ( keys %$args ) {
+            _croak( "unknown options passed to ",
+                __PACKAGE__, "::import: ", join( ', ', keys %$args ) );
         }
     }
-    else {
-        $class = _build_class( $args );
-    }
-
-    my $construct = 'my $obj = ' . do {
-
-        if ( $class->can( 'new' ) ) {
-            qq[$class->new(\$hash);];
-        }
-        else {
-            qq[bless \$hash, '$class';];
-        }
-
-    };
-
-    #<<< no tidy
-    my $code = qq[
-    sub (\$) {
-      my \$hash = shift;
-      if ( ! 'HASH' eq ref \$hash ) { _croak( "argument to $name must be a hashref" ) }
-      <<PRECODE>>
-      <<CONSTRUCT>>
-      <<POSTCODE>>
-      return \$obj;
-      };
-    ];
-    #>>>
-
-    # clean out the rest of the known attributes
-    delete @{$args}{qw[ -lvalue -create -class -undef -exists -defined ]};
-
-    if ( keys %$args ) {
-        _croak( "unknown options passed to ",
-            __PACKAGE__, "::import: ", join( ', ', keys %$args ) );
-    }
-
-    _interpolate(
-        \$code,
-        {
-            precode   => join( "\n", @pre_code ),
-            construct => $construct,
-            postcode  => join( "\n", @post_code ),
-        },
-    );
-
-    return eval( $code )    ## no critic (ProhibitStringyEval)
-      || _croak( "error generating wrap_hash subroutine: $@\n$code" );
-
 }
 
 # copied from Damian Conway's PPR: PerlIdentifier
 use constant PerlIdentifier => qr/([^\W\d]\w*+)/;
 
-# our bizarre little role emulator.  except our roles have no methods, just lexical subs.  whee!
 sub _build_class {
 
     my $attr = shift;
 
-    my $class = $attr->{-class};
-
-    if ( !defined $class ) {
+    if ( !defined $attr->{-class} ) {
 
         my @class = map {
-            ( my $key = $_ ) =~ s/-//;
+                ( my $key = $_ ) =~ s/-//;
+                ( $key, defined $attr->{$_} ? $attr->{$_} : "<undef>" )
+            } sort keys %$attr;
 
-            # -exists can specify the name of its method
-            $key .= $attr->{$_}
-              if $key eq 'exists' or $key eq 'defined' && $attr->{$_} =~ PerlIdentifier;
-
-            $key
-        } sort keys %$attr;
-
-        $class = join '::', 'Hash::Wrap::Class', @class;
+        $attr->{-class} = join '::', 'Hash::Wrap::Class', Digest::MD5::md5_hex( @class );
     }
 
-    return $class if $REGISTRY{$class};
+    my $class = $attr->{-class};
+
+    return $class if defined $REGISTRY{$class};
 
     my %dict = (
-        class         => $class,
-        signature     => '',
-        body          => [],
-        autoload_attr => '',
-        validate      => '',
+        class           => $class,
+        signature       => '',
+        body            => [],
+        autoload_attr   => '',
+        validate_inline => 'exists $self->{\<<KEY>>}',
+        validate_method => 'exists $self->{$key}',
+	meta => [  map { ( qq[q($_) => q($attr->{$_}),] ) } keys %$attr ],
     );
 
     if ( $attr->{-lvalue} ) {
 
-        $dict{autoload_attr} = ': lvalue';
-        $dict{signature} = 'our $generate_signature = sub { q[: lvalue]; };';
+        if ( $] lt '5.016000' ) {
+            _croak( "lvalue accessors require Perl 5.16 or later" )
+              if $attr->{-lvalue} < 0;
+        }
+        else {
+            $dict{autoload_attr} = q[: lvalue];
+            $dict{signature}     = q[: lvalue];
+        }
     }
 
     if ( $attr->{-undef} ) {
-        $dict{validate} = q[ our $generate_validate = sub { '1' }; ];
+        $dict{validate_method} = q[ 1 ];
+        $dict{validate_inline} = q[ 1 ];
     }
 
     if ( $attr->{-exists} ) {
-        $dict{exists} = $attr->{-exists} =~  PerlIdentifier ? $1 : 'exists';
-        push @{$dict{body}}, q[ sub <<EXISTS>> { exists $_[0]->{$_[1] } } ];
+        $dict{exists} = $attr->{-exists} =~ PerlIdentifier ? $1 : 'exists';
+        push @{ $dict{body} }, q[ sub <<EXISTS>> { exists $_[0]->{$_[1] } } ];
     }
 
     if ( $attr->{-defined} ) {
-        $dict{defined} = $attr->{-defined} =~  PerlIdentifier ? $1 : 'defined';
-        push @{$dict{body}}, q[ sub <<DEFINED>> { defined $_[0]->{$_[1] } } ];
+        $dict{defined} = $attr->{-defined} =~ PerlIdentifier ? $1 : 'defined';
+        push @{ $dict{body} }, q[ sub <<DEFINED>> { defined $_[0]->{$_[1] } } ];
     }
 
     my $class_template = <<'END';
@@ -343,37 +206,198 @@ package <<CLASS>>;
 
 use Scalar::Util ();
 
-our @ISA = ( 'Hash::Wrap::Base' );
+our $meta = { <<META>> };
 
-<<SIGNATURE>>
+our $validate = sub {
+    my ( $self, $key ) = @_;
+    return <<VALIDATE_METHOD>>;
+};
+
+our $accessor_template = q[
+  package \<<CLASS>>;
+
+  use Scalar::Util ();
+
+  sub \<<KEY>> <<SIGNATURE>> {
+    my $self = shift;
+
+    unless ( Scalar::Util::blessed( $self ) ) {
+      require Carp;
+      Carp::croak( qq[Can't locate class method "\<<KEY>>" via package $self] );
+    }
+
+    unless ( <<VALIDATE_INLINE>> ) {
+      require Carp;
+      Carp::croak( qq[Can't locate object method "\<<KEY>>" via package @{[ Scalar::Util::blessed( $self ) ]}] );
+    }
+
+   $self->{q[\<<KEY>>]} = $_[0] if @_;
+
+   return $self->{q[\<<KEY>>]};
+  }
+  \&\<<KEY>>;
+];
+
 
 <<BODY>>
 
-<<VALIDATE>>
-
 our $AUTOLOAD;
 sub AUTOLOAD <<AUTOLOAD_ATTR>> {
-    goto &{ Hash::Wrap::_autoload( $AUTOLOAD, $_[0] ) };
+    goto &{ Hash::Wrap::_autoload( q[<<CLASS>>], $AUTOLOAD, $_[0] ) };
+}
+
+sub DESTROY { }
+
+sub can {
+
+    my ( $self, $key ) = @_;
+
+    my $class = Scalar::Util::blessed( $self );
+    return if !defined $class;
+
+    return unless exists $self->{$key};
+
+    my $method = "${class}::$key";
+
+    ## no critic (ProhibitNoStrict)
+    no strict 'refs';
+    return *{$method}{CODE}
+      || Hash::Wrap::_generate_accessor( q[<<CLASS>>], $self, $method, $key );
 }
 
 1;
 END
 
     _compile_from_tpl( \$class_template, \%dict )
-      or _croak( "error generating class $class: $@\n$class_template" );
+      or _croak_about_code( \$class_template, "class $class" );
+
+    if ( !!$attr->{-new} ) {
+        my $name = $attr->{-new} =~ PerlIdentifier ? $1 : 'new';
+        _build_constructor( $class, $name, { %$attr, -method => 1 } );
+    }
 
     push @CARP_NOT, $class;
-    $REGISTRY{$class}++;
+    $REGISTRY{$class} = {
+        accessor_template =>
+          _find_symbol( $class, "accessor_template", [ "SCALAR", undef ] ),
+        validate => _find_symbol( $class, 'validate', [ 'REF', 'CODE' ] ),
+    };
+
+    Scalar::Util::weaken( $REGISTRY{$class}{validate} );
 
     return $class;
 }
+
+sub _build_constructor {
+
+    my ( $package, $name, $args ) = @_;
+
+    # closure for user provided clone sub
+    my $clone;
+
+    _croak( "cannot mix -copy and -clone" )
+      if exists $args->{-copy} && exists $args->{-clone};
+
+    my %dict = (
+        package => $package,
+        name    => $name,
+        use     => [],
+    );
+
+    $dict{class} = do {
+
+        if ( $args->{-method} ) {
+            'shift;';
+        }
+        else {
+
+            'q[' . $args->{-class} . '];';
+        }
+    };
+
+    $dict{copy} = do {
+
+        if ( $args->{-copy} ) {
+            '$hash = { %{ $hash } };';
+        }
+
+        elsif ( exists $args->{-clone} ) {
+
+
+            if ( 'CODE' eq ref $args->{-clone} ) {
+                $clone = $args->{-clone};
+                '$hash = $clone->($hash);';
+            }
+            else {
+                push @{ $dict{use} }, q[use Storable ();];
+                '$hash = Storable::dclone $hash;';
+            }
+        }
+    };
+
+    #<<< no tidy
+    my $code = q[
+    package <<PACKAGE>>;
+    <<USE>>
+    use Scalar::Util ();
+
+    no warnings 'redefine';
+
+    sub <<NAME>> ($) {
+      my $class = <<CLASS>>
+      my $hash = shift;
+      if ( 'HASH' ne Scalar::Util::reftype($hash) ) {
+         require Carp;
+         Carp::croak( "argument to <<PACKAGE>>::<<NAME>> must be a hashref" )
+      }
+      <<COPY>>
+      bless $hash, $class;
+    }
+    1;
+    ];
+    #>>>
+
+    _interpolate( \$code, \%dict );
+
+    eval( $code )    ## no critic (ProhibitStringyEval)
+      || _croak(
+        "error generating constructor (as $name) subroutine: $@\n$code" );
+}
+
+sub _croak_about_code {
+
+    my ( $code, $what ) = @_;
+
+    my $error = $@;
+
+    _line_number_code( $code );
+
+    _croak( qq[error compiling $what: $error\n$$code] );
+}
+
+sub _line_number_code {
+
+    my ( $code ) = @_;
+
+    my $space = length( $$code =~ tr/\n// );
+    my $line  = 0;
+    $$code =~ s/^/sprintf "%${space}d: ", ++$line/emg;
+}
+
 
 # can't handle closures; should use Sub::Quote
 sub _compile_from_tpl {
     my ( $code, $dict ) = @_;
 
     _interpolate( $code, $dict );
-    eval( $$code );  ## no critic (ProhibitStringyEval)
+
+    if ( $DEBUG ) {
+        my $code = $$code;
+        _line_number_code( \$code );
+        print STDERR $code;
+    }
+
+    eval( $$code );    ## no critic (ProhibitStringyEval)
 }
 
 sub _interpolate {
@@ -382,21 +406,29 @@ sub _interpolate {
 
     $work = { loop => {} } unless defined $work;
 
-    $$tpl =~ s{ \<\<(\w+)\>\>
+    $$tpl =~ s{(\\)?\<\<(\w+)\>\>
               }{
-                  my $key = lc $1;
-                  my $v = $dict->{$key};
-                  if ( defined $v ) {
+                  if ( defined $1 ) {
+                     "<<$2>>";
+                  }
+                  else {
+                    my $key = lc $2;
+                    my $v = $dict->{$key};
+                    if ( defined $v ) {
 
-                      $v = join( "\n", @$v )
-                        if 'ARRAY' eq ref $v;
+                        $v = join( "\n", @$v )
+                          if 'ARRAY' eq ref $v;
 
-                      _croak( "circular interpolation loop detected for $key" )
-                        if $work->{loop}{$key}++;
-                      _interpolate( \$v, $dict, $work );
-                      --$work->{loop}{$key};
-                 }
-                 $v;
+                        _croak( "circular interpolation loop detected for $key" )
+                          if $work->{loop}{$key}++;
+                        _interpolate( \$v, $dict, $work );
+                        --$work->{loop}{$key};
+                    $v;
+                    }
+                    else {
+                        '';
+                    }
+                }
               }gex;
     return;
 }
@@ -414,99 +446,186 @@ __END__
 
   use Hash::Wrap;
 
-  sub foo {
-    wrap_hash { a => 1 };
-  }
-
-  $result = foo();
+  my $result = wrap_hash( { a => 1 } );
   print $result->a;  # prints
   print $result->b;  # throws
 
-  # create two constructors, <cloned> and <copied> with different
-  # behaviors. does not import C<wrap_hash>
+  # import two constructors, <cloned> and <copied> with different behaviors.
   use Hash::Wrap
     { -as => 'cloned', clone => 1},
     { -as => 'copied', copy => 1 };
 
+  my $cloned = cloned( { a => 1 } );
+  print $cloned->a;
+
+  my $copied = copied( { a => 1 } );
+  print $copied->a;
+
+
 =head1 DESCRIPTION
 
+B<Hash::Wrap> creates objects from hashes, providing accessors for
+hash elements.  The objects are hashes, and may be modified using the
+standard Perl hash operations and the object's accessors will behave
+accordingly.
 
-This module provides constructors which create light-weight objects
-from existing hashes, allowing access to hash elements via methods
-(and thus avoiding typos). By default, attempting to access a
-non-existent element via a method will result in an exception, but
-this may be modified so that the undefined value is returned (see
-L</-undef>).
+Why use this class? Sometimes a hash is created on the fly and it's too
+much of a hassle to build a class to encapsulate it.
 
-Hash elements may be added to or deleted from the object after
-instantiation using the standard Perl hash operations, and changes
-will be reflected in the object's methods. For example,
+  sub foo () { ... ; return { a => 1 }; }
 
-   $obj = wrap_hash( { a => 1, b => 2 );
-   $obj->c; # throws exception
-   $obj->{c} = 3;
-   $obj->c; # returns 3
-   delete $obj->{c};
-   $obj->c; # throws exception
+With C<Hash::Wrap>:
 
+  use Hash::Wrap;
 
-To prevent modification of the hash, consider using the lock routines
-in L<Hash::Util> on the object.
+  sub foo () { ... ; return wrap_hash( { a => 1 ); }
 
-The methods act as both accessors and setters, e.g.
+  my $obj = foo ();
+  print $obj->a;
 
-  $obj = wrap_hash( { a => 1 } );
-  print $obj->a; # 1
-  $obj->a( 3 );
-  print $obj->a; # 3
+Elements can be added or removed to the object and accessors will
+track them.  If the object should be immutable, use the lock routines
+in L<Hash::Util> on it.
 
-Only hash keys which are legal method names will be accessible via
-object methods.
+There are many similar modules on CPAN (see L<SEE ALSO> for comparisons).
 
-Accessors may optionally be used as lvalues, e.g.,
+What sets B<Hash::Wrap> apart is that it's possible to customize
+object construction and accessor behavior:
 
-  $obj->a = 3;
+=over
 
-in Perl version 5.16 or later. See L</-lvalue>.
+=item *
 
+It's possible to use the passed hash directly, or make shallow or deep copies of it.
 
-=head2 Object construction and constructor customization
+=item *
 
-By default C<Hash::Wrap> exports a C<wrap_hash> subroutine which,
-given a hashref, blesses it directly into the B<Hash::Wrap::Class>
-class.
+Accessors can be customized so that accessing a non-existent element can throw an exception or return the undefined value.
 
-The constructor may be customized to change which class the object is
-instantiated from, and how it is constructed from the data.
+=item *
+
+On recent enough versions of Perl, accessors can be lvalues, e.g.
+
+   $obj->existing_key = $value;
+
+=back
+
+=head1 USAGE
+
+=head2 Simple Usage
+
+C<use>'ing B<Hash::Wrap> without options imports a subroutine called
+C<wrap_hash> which takes a hash, blesses it into a wrapper class and
+returns the hash:
+
+  use Hash::Wrap;
+
+  my $h = wrap_hash { a => 1 };
+  print $h->a, "\n";             # prints 1
+
+The wrapper class has no constructor method, so the only way to create
+an object is via the C<wrap_hash> subroutine. (See L</WRAPPER CLASSES>
+for more about wrapper classes)
+
+=head2 Advanced Usage
+
+=head3 C<wrap_hash> is an awful name for the constructor subroutine
+
+So rename it:
+
+  use Hash::Wrap { -as => "a_much_better_name_for_wrap_hash" };
+
+  $obj = a_much_better_name_for_wrap_hash( { a => 1 } );
+
+=head3 The Wrapper Class name matters
+
+If the class I<name> matters, but it'll never be instantiated
+except via the imported constructor subroutine:
+
+  use Hash::Wrap { -class => 'My::Class' };
+
+  my $h = wrap_hash { a => 1 };
+  print $h->a, "\n";             # prints 1
+  $h->isa( 'My::Class' );        # returns true
+
+Again, the wrapper class has no constructor method, so the only way to create
+an object is via the C<wrap_hash> subroutine.
+
+=head3 The Wrapper Class needs its own class constructor method
+
+To generate a wrapper class which can be instantiated via its own
+constructor method:
+
+  use Hash::Wrap { -class => 'My::Class', -new => 1 };
+
+The default C<wrap_hash> constructor subroutine is still exported, so
+
+  $h = My::Class->new( { a => 1 } );
+
+and
+
+  $h = wrap_hash( { a => 1 } );
+
+do the same thing.
+
+To give the constructor method a different name:
+
+  use Hash::Wrap { -class => 'My::Class',  -new => '_my_new' };
+
+To prevent the constructor subroutine from being imported:
+
+  use Hash::Wrap { -as => undef, -class => 'My::Class', -new => 1 };
+
+=head3 A stand alone Wrapper Class
+
+To create a stand alone wrapper class,
+
+   package My::Class;
+
+   use Hash::Wrap { -base => 1 };
+
+   1;
+
+And later...
+
+   use My::Class;
+
+   $obj = My::Class->new( \%hash );
+
+It's possible to modify the constructor and accessors:
+
+   package My::Class;
+
+   use Hash::Wrap { -base => 1, -new => 'new_from_hash', -undef => 1 };
+
+   1;
+
+=head1 OPTIONS
+
+B<Hash::Wrap> works at compile time.  To modify its behavior pass it
+options when it is C<use>'d:
+
+  use Hash::Wrap { %options1 }, { %options2 }, ... ;
+
+Multiple options hashes may be passed; each hash specifies options for
+a separate constructor or class.
+
 For example,
 
   use Hash::Wrap
-    { -as => 'return_cloned_object', -clone => 1 };
+    { -as => 'cloned', clone => 1},
+    { -as => 'copied', copy => 1 };
 
-will create a constructor which clones the passed hash
-and is imported as C<return_cloned_object>.  To import it under
-the original name, C<wrap_hash>, leave out the C<-as> option.
+creates two constructors, C<cloned> and C<copied> with different
+behaviors.
 
-The following options are available to customize the constructor.
+=head2 Constructor
 
 =over
 
 =item C<-as> => I<subroutine name>
 
-This is optional, and imports the constructor with the given name. If
-not specified, it defaults to C<wrap_hash>.
-
-=item C<-class> => I<class name>
-
-The object will be blessed into the specified class.  If the class
-should be created on the fly, specify the C<-create> option.
-See L</Object Classes> for what is expected of the object classes.
-This defaults to C<Hash::Wrap::Class>.
-
-=item C<-create> => I<boolean>
-
-If true, and C<-class> is specified, a class with the given name
-will be created.
+Import the constructor subroutine with the given name. It defaults to C<wrap_hash>.
 
 =item C<-copy> => I<boolean>
 
@@ -522,14 +641,76 @@ is used. If a coderef, it will be called as
 
 By default, the object uses the hash directly.
 
+=back
+
+=head2 Accessors
+
+=over
+
+=item C<-undef> => I<boolean>
+
+Normally an attempt to use an accessor for an non-existent key will
+result in an exception.  This option causes the accessor
+to return C<undef> instead.  It does I<not> create an element in
+the hash for the key.
+
+=item C<-lvalue> => I<flag>
+
+If non-zero, the accessors will be lvalue routines, e.g. they can
+change the underlying hash value by assigning to them:
+
+   $obj->attr = 3;
+
+The hash entry I<must already exist> or this will throw an exception.
+
+lvalue subroutines are only available on Perl version 5.16 and later.
+
+If C<-lvalue = 1> this option will silently be ignored on earlier versions of Perl.
+
+If C<-lvalue = -1> this option will cause an exception on earlier versions of Perl.
+
+=back
+
+=head2 Class
+
+=over
+
+=item C<-base> => I<boolean>
+
+If true, the enclosing package is converted into a proxy wrapper class.  This should
+not be used in conjunction with C<-class>.  See L</A stand alone Wrapper Class>.
+
+=item C<-class> => I<class name>
+
+A class with the given name will be created and new objects will be
+blessed into the specified class by the constructor subroutine.  The
+new class will not have a constructor method.
+
+If not specified, the class name will be constructed based upon the
+options.  Do not rely upon this name to determine if an object is
+wrapped by B<Hash::Wrap>. 
+
+=item C<-new> => I<boolean> | I<Perl Identifier>
+
+Add a class constructor method.
+
+If C<-new> is a true boolean value, the method will be called
+C<new>. Otherwise C<-new> specifies the name of the method.
+
+=back
+
+=head3 Extra Class Methods
+
+=over
+
 =item C<-defined> => I<boolean> | I<Perl Identifier>
 
 Add a method which returns true if the passed hash key is defined or
-does not exist. If C<-defined> is a boolean, the method will be called
+does not exist. If C<-defined> is a true boolean value, the method will be called
 C<defined>. Otherwise it specifies the name of the method. For
 example,
 
-   use Hash::Wrap { -exists => 1 };
+   use Hash::Wrap { -defined => 1 };
    $obj = wrap_hash( { a => 1, b => undef } );
 
    $obj->defined( 'a' ); # TRUE
@@ -537,10 +718,10 @@ example,
    $obj->defined( 'c' ); # FALSE
 
 or
-   use Hash::Wrap { -exists => 'is_defined' };
+
+   use Hash::Wrap { -defined => 'is_defined' };
    $obj = wrap_hash( { a => 1 } );
    $obj->is_defined( 'a' );
-
 
 =item C<-exists> => I<boolean> | I<Perl Identifier>
 
@@ -559,72 +740,61 @@ or
    $obj->is_present( 'a' );
 
 
-=item C<-undef> => I<boolean>
-
-Normally an attempt to use an accessor for an non-existent key will
-result in an exception.  The C<-undef> option causes the accessor
-to return C<undef> instead.  It does I<not> create an element in
-the hash for the key.
-
-=item C<-lvalue> => I<boolean>
-
-If true, the accessors will be lvalue routines, e.g. they can
-change the underlying hash value by assigning to them:
-
-   $obj->attr = 3;
-
-The hash entry must already exist before using the accessor in
-this manner, or it will throw an exception.
-
-This is only available on Perl version 5.16 and later.
-
 =back
 
-=head2 Object Classes
+=head1 WRAPPER CLASSES
 
-An object class has the following properties:
+A wrapper class has the following characteristics.
 
 =over
 
 =item *
 
-The class must be a subclass of C<Hash::Wrap::Base>.
+It has the methods C<DESTROY>, C<AUTOLOAD> and C<can>.
 
 =item *
 
-The class typically does not provide any methods, as they would mask
-a hash key of the same name.
+It may have other methods if the C<-undef> and C<-exists> options are specified, or
+it is L<a stand alone class|/A stand alone Wrapper Class>.
 
 =item *
 
-The class need not have a constructor.  If it does, it is passed a
-hashref which it should bless as the actual object.  For example:
-
-  package My::Result;
-  use parent 'Hash::Wrap::Base';
-
-  sub new {
-    my  ( $class, $hash ) = @_;
-    return bless $hash, $class;
-  }
-
-This excludes having a hash key named C<new>.
+It may have a constructor if C<-base> or C<-new> is specified.
 
 =back
 
-C<Hash::Wrap::Base> provides an empty C<DESTROY> method, a
-C<can> method, and an C<AUTOLOAD> method.  They will mask hash
-keys with the same names.
+=head2 Wrapper Class Limitations
+
+=over
+
+=item *
+
+Wrapper classes have C<DESTROY>, C<can> method, and
+C<AUTOLOAD> methods, which will mask hash keys with the same names.
+
+=item *
+
+Classes which are generated without the C<-base> or C<-new> options do
+not have a class constructor method, e.g C<< Class->new() >> will
+I<not> return a new object.  The only way to instantiate them is via
+the constructor subroutine generated via B<Hash::Wrap>.  This allows
+the underlying hash to have a C<new> attribute which would otherwise be
+masked by the constructor.
+
+=back
 
 =head1 LIMITATIONS
 
-=over
-
-=item *
+=head2 Lvalue accessors
 
 Lvalue accessors are available only on Perl 5.16 and later.
 
-=back
+=head2 Accessors for deleted hash elements
+
+Accessors for deleted elements are not removed.  The class's C<can>
+method will return C<undef> for them, but they are still available in
+the class's stash.
+
 
 =head1 SEE ALSO
 
@@ -770,5 +940,9 @@ throwing
 =item * no documentation
 
 =back
+
+=item L<Object::Accessor>
+
+
 
 =back

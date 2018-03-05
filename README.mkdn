@@ -1,6 +1,6 @@
 # NAME
 
-Hash::Wrap - create lightweight on-the-fly objects from hashes
+Hash::Wrap - create on-the-fly objects from hashes
 
 # VERSION
 
@@ -10,94 +10,171 @@ version 0.08
 
     use Hash::Wrap;
 
-    sub foo {
-      wrap_hash { a => 1 };
-    }
-
-    $result = foo();
+    my $result = wrap_hash( { a => 1 } );
     print $result->a;  # prints
     print $result->b;  # throws
 
-    # create two constructors, <cloned> and <copied> with different
-    # behaviors. does not import C<wrap_hash>
+    # import two constructors, <cloned> and <copied> with different behaviors.
     use Hash::Wrap
       { -as => 'cloned', clone => 1},
       { -as => 'copied', copy => 1 };
 
+    my $cloned = cloned( { a => 1 } );
+    print $cloned->a;
+
+    my $copied = copied( { a => 1 } );
+    print $copied->a;
+
 # DESCRIPTION
 
-This module provides constructors which create light-weight objects
-from existing hashes, allowing access to hash elements via methods
-(and thus avoiding typos). By default, attempting to access a
-non-existent element via a method will result in an exception, but
-this may be modified so that the undefined value is returned (see
-["-undef"](#undef)).
+**Hash::Wrap** creates objects from hashes, providing accessors for
+hash elements.  The objects are hashes, and may be modified using the
+standard Perl hash operations and the object's accessors will behave
+accordingly.
 
-Hash elements may be added to or deleted from the object after
-instantiation using the standard Perl hash operations, and changes
-will be reflected in the object's methods. For example,
+Why use this class? Sometimes a hash is created on the fly and it's too
+much of a hassle to build a class to encapsulate it.
 
-    $obj = wrap_hash( { a => 1, b => 2 );
-    $obj->c; # throws exception
-    $obj->{c} = 3;
-    $obj->c; # returns 3
-    delete $obj->{c};
-    $obj->c; # throws exception
+    sub foo () { ... ; return { a => 1 }; }
 
-To prevent modification of the hash, consider using the lock routines
-in [Hash::Util](https://metacpan.org/pod/Hash::Util) on the object.
+With `Hash::Wrap`:
 
-The methods act as both accessors and setters, e.g.
+    use Hash::Wrap;
 
-    $obj = wrap_hash( { a => 1 } );
-    print $obj->a; # 1
-    $obj->a( 3 );
-    print $obj->a; # 3
+    sub foo () { ... ; return wrap_hash( { a => 1 ); }
 
-Only hash keys which are legal method names will be accessible via
-object methods.
+    my $obj = foo ();
+    print $obj->a;
 
-Accessors may optionally be used as lvalues, e.g.,
+Elements can be added or removed to the object and accessors will
+track them.  If the object should be immutable, use the lock routines
+in [Hash::Util](https://metacpan.org/pod/Hash::Util) on it.
 
-    $obj->a = 3;
+There are many similar modules on CPAN (see ["SEE ALSO"](#see-also) for comparisons).
 
-in Perl version 5.16 or later. See ["-lvalue"](#lvalue).
+What sets **Hash::Wrap** apart is that it's possible to customize
+object construction and accessor behavior:
 
-## Object construction and constructor customization
+- It's possible to use the passed hash directly, or make shallow or deep copies of it.
+- Accessors can be customized so that accessing a non-existent element can throw an exception or return the undefined value.
+- On recent enough versions of Perl, accessors can be lvalues, e.g.
 
-By default `Hash::Wrap` exports a `wrap_hash` subroutine which,
-given a hashref, blesses it directly into the **Hash::Wrap::Class**
-class.
+        $obj->existing_key = $value;
 
-The constructor may be customized to change which class the object is
-instantiated from, and how it is constructed from the data.
+# USAGE
+
+## Simple Usage
+
+`use`'ing **Hash::Wrap** without options imports a subroutine called
+`wrap_hash` which takes a hash, blesses it into a wrapper class and
+returns the hash:
+
+    use Hash::Wrap;
+
+    my $h = wrap_hash { a => 1 };
+    print $h->a, "\n";             # prints 1
+
+The wrapper class has no constructor method, so the only way to create
+an object is via the `wrap_hash` subroutine. (See ["WRAPPER CLASSES"](#wrapper-classes)
+for more about wrapper classes)
+
+## Advanced Usage
+
+### `wrap_hash` is an awful name for the constructor subroutine
+
+So rename it:
+
+    use Hash::Wrap { -as => "a_much_better_name_for_wrap_hash" };
+
+    $obj = a_much_better_name_for_wrap_hash( { a => 1 } );
+
+### The Wrapper Class name matters
+
+If the class _name_ matters, but it'll never be instantiated
+except via the imported constructor subroutine:
+
+    use Hash::Wrap { -class => 'My::Class' };
+
+    my $h = wrap_hash { a => 1 };
+    print $h->a, "\n";             # prints 1
+    $h->isa( 'My::Class' );        # returns true
+
+Again, the wrapper class has no constructor method, so the only way to create
+an object is via the `wrap_hash` subroutine.
+
+### The Wrapper Class needs its own class constructor method
+
+To generate a wrapper class which can be instantiated via its own
+constructor method:
+
+    use Hash::Wrap { -class => 'My::Class', -new => 1 };
+
+The default `wrap_hash` constructor subroutine is still exported, so
+
+    $h = My::Class->new( { a => 1 } );
+
+and
+
+    $h = wrap_hash( { a => 1 } );
+
+do the same thing.
+
+To give the constructor method a different name:
+
+    use Hash::Wrap { -class => 'My::Class',  -new => '_my_new' };
+
+To prevent the constructor subroutine from being imported:
+
+    use Hash::Wrap { -as => undef, -class => 'My::Class', -new => 1 };
+
+### A stand alone Wrapper Class
+
+To create a stand alone wrapper class,
+
+    package My::Class;
+
+    use Hash::Wrap { -base => 1 };
+
+    1;
+
+And later...
+
+    use My::Class;
+
+    $obj = My::Class->new( \%hash );
+
+It's possible to modify the constructor and accessors:
+
+    package My::Class;
+
+    use Hash::Wrap { -base => 1, -new => 'new_from_hash', -undef => 1 };
+
+    1;
+
+# OPTIONS
+
+**Hash::Wrap** works at compile time.  To modify its behavior pass it
+options when it is `use`'d:
+
+    use Hash::Wrap { %options1 }, { %options2 }, ... ;
+
+Multiple options hashes may be passed; each hash specifies options for
+a separate constructor or class.
+
 For example,
 
     use Hash::Wrap
-      { -as => 'return_cloned_object', -clone => 1 };
+      { -as => 'cloned', clone => 1},
+      { -as => 'copied', copy => 1 };
 
-will create a constructor which clones the passed hash
-and is imported as `return_cloned_object`.  To import it under
-the original name, `wrap_hash`, leave out the `-as` option.
+creates two constructors, `cloned` and `copied` with different
+behaviors.
 
-The following options are available to customize the constructor.
+## Constructor
 
 - `-as` => _subroutine name_
 
-    This is optional, and imports the constructor with the given name. If
-    not specified, it defaults to `wrap_hash`.
-
-- `-class` => _class name_
-
-    The object will be blessed into the specified class.  If the class
-    should be created on the fly, specify the `-create` option.
-    See ["Object Classes"](#object-classes) for what is expected of the object classes.
-    This defaults to `Hash::Wrap::Class`.
-
-- `-create` => _boolean_
-
-    If true, and `-class` is specified, a class with the given name
-    will be created.
+    Import the constructor subroutine with the given name. It defaults to `wrap_hash`.
 
 - `-copy` => _boolean_
 
@@ -113,14 +190,64 @@ The following options are available to customize the constructor.
 
     By default, the object uses the hash directly.
 
+## Accessors
+
+- `-undef` => _boolean_
+
+    Normally an attempt to use an accessor for an non-existent key will
+    result in an exception.  This option causes the accessor
+    to return `undef` instead.  It does _not_ create an element in
+    the hash for the key.
+
+- `-lvalue` => _flag_
+
+    If non-zero, the accessors will be lvalue routines, e.g. they can
+    change the underlying hash value by assigning to them:
+
+        $obj->attr = 3;
+
+    The hash entry _must already exist_ or this will throw an exception.
+
+    lvalue subroutines are only available on Perl version 5.16 and later.
+
+    If `-lvalue = 1` this option will silently be ignored on earlier versions of Perl.
+
+    If `-lvalue = -1` this option will cause an exception on earlier versions of Perl.
+
+## Class
+
+- `-base` => _boolean_
+
+    If true, the enclosing package is converted into a proxy wrapper class.  This should
+    not be used in conjunction with `-class`.  See ["A stand alone Wrapper Class"](#a-stand-alone-wrapper-class).
+
+- `-class` => _class name_
+
+    A class with the given name will be created and new objects will be
+    blessed into the specified class by the constructor subroutine.  The
+    new class will not have a constructor method.
+
+    If not specified, the class name will be constructed based upon the
+    options.  Do not rely upon this name to determine if an object is
+    wrapped by **Hash::Wrap**. 
+
+- `-new` => _boolean_ | _Perl Identifier_
+
+    Add a class constructor method.
+
+    If `-new` is a true boolean value, the method will be called
+    `new`. Otherwise `-new` specifies the name of the method.
+
+### Extra Class Methods
+
 - `-defined` => _boolean_ | _Perl Identifier_
 
     Add a method which returns true if the passed hash key is defined or
-    does not exist. If `-defined` is a boolean, the method will be called
+    does not exist. If `-defined` is a true boolean value, the method will be called
     `defined`. Otherwise it specifies the name of the method. For
     example,
 
-        use Hash::Wrap { -exists => 1 };
+        use Hash::Wrap { -defined => 1 };
         $obj = wrap_hash( { a => 1, b => undef } );
 
         $obj->defined( 'a' ); # TRUE
@@ -128,9 +255,10 @@ The following options are available to customize the constructor.
         $obj->defined( 'c' ); # FALSE
 
     or
-       use Hash::Wrap { -exists => 'is\_defined' };
-       $obj = wrap\_hash( { a => 1 } );
-       $obj->is\_defined( 'a' );
+
+        use Hash::Wrap { -defined => 'is_defined' };
+        $obj = wrap_hash( { a => 1 } );
+        $obj->is_defined( 'a' );
 
 - `-exists` => _boolean_ | _Perl Identifier_
 
@@ -143,56 +271,42 @@ The following options are available to customize the constructor.
         $obj->exists( 'a' );
 
     or
-       use Hash::Wrap { -exists => 'is\_present' };
-       $obj = wrap\_hash( { a => 1 } );
-       $obj->is\_present( 'a' );
 
-- `-undef` => _boolean_
+        use Hash::Wrap { -exists => 'is_present' };
+        $obj = wrap_hash( { a => 1 } );
+        $obj->is_present( 'a' );
 
-    Normally an attempt to use an accessor for an non-existent key will
-    result in an exception.  The `-undef` option causes the accessor
-    to return `undef` instead.  It does _not_ create an element in
-    the hash for the key.
+# WRAPPER CLASSES
 
-- `-lvalue` => _boolean_
+A wrapper class has the following characteristics.
 
-    If true, the accessors will be lvalue routines, e.g. they can
-    change the underlying hash value by assigning to them:
+- It has the methods `DESTROY`, `AUTOLOAD` and `can`.
+- It may have other methods if the `-undef` and `-exists` options are specified, or
+it is [a stand alone class](#a-stand-alone-wrapper-class).
+- It may have a constructor if `-base` or `-new` is specified.
 
-        $obj->attr = 3;
+## Wrapper Class Limitations
 
-    The hash entry must already exist before using the accessor in
-    this manner, or it will throw an exception.
-
-    This is only available on Perl version 5.16 and later.
-
-## Object Classes
-
-An object class has the following properties:
-
-- The class must be a subclass of `Hash::Wrap::Base`.
-- The class typically does not provide any methods, as they would mask
-a hash key of the same name.
-- The class need not have a constructor.  If it does, it is passed a
-hashref which it should bless as the actual object.  For example:
-
-        package My::Result;
-        use parent 'Hash::Wrap::Base';
-
-        sub new {
-          my  ( $class, $hash ) = @_;
-          return bless $hash, $class;
-        }
-
-    This excludes having a hash key named `new`.
-
-`Hash::Wrap::Base` provides an empty `DESTROY` method, a
-`can` method, and an `AUTOLOAD` method.  They will mask hash
-keys with the same names.
+- Wrapper classes have `DESTROY`, `can` method, and
+`AUTOLOAD` methods, which will mask hash keys with the same names.
+- Classes which are generated without the `-base` or `-new` options do
+not have a class constructor method, e.g `Class->new()` will
+_not_ return a new object.  The only way to instantiate them is via
+the constructor subroutine generated via **Hash::Wrap**.  This allows
+the underlying hash to have a `new` attribute which would otherwise be
+masked by the constructor.
 
 # LIMITATIONS
 
-- Lvalue accessors are available only on Perl 5.16 and later.
+## Lvalue accessors
+
+Lvalue accessors are available only on Perl 5.16 and later.
+
+## Accessors for deleted hash elements
+
+Accessors for deleted elements are not removed.  The class's `can`
+method will return `undef` for them, but they are still available in
+the class's stash.
 
 # SEE ALSO
 
@@ -251,6 +365,7 @@ Here's a comparison of this module and others on CPAN.
 - [Data::Object::Autowrap](https://metacpan.org/pod/Data::Object::Autowrap)
     - core dependencies only
     - no documentation
+- [Object::Accessor](https://metacpan.org/pod/Object::Accessor)
 
 # BUGS
 
