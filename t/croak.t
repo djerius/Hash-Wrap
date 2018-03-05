@@ -2,13 +2,9 @@
 
 use Test2::V0;
 
-use Scalar::Util 'blessed';
-
 use Hash::Wrap;
 
-my %hash;
-
-my $obj = wrap_hash( \%hash );
+my $obj = wrap_hash( {} );
 
 like( dies{ $obj->foo },
       qr{t/croak.t},
