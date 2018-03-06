@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use 5.008009;
+use 5.010;
 
 use ExtUtils::MakeMaker;
 
@@ -14,7 +14,7 @@ my %WriteMakefileArgs = (
   },
   "DISTNAME" => "Hash-Wrap",
   "LICENSE" => "gpl",
-  "MIN_PERL_VERSION" => "5.008009",
+  "MIN_PERL_VERSION" => "5.010",
   "NAME" => "Hash::Wrap",
   "PREREQ_PM" => {
     "Scalar::Util" => 0
@@ -24,7 +24,6 @@ my %WriteMakefileArgs = (
     "File::Spec" => 0,
     "IO::Handle" => 0,
     "IPC::Open3" => 0,
-    "Number::Tolerant" => 0,
     "Test2::V0" => 0,
     "Test::More" => 0
   },
@@ -40,7 +39,6 @@ my %FallbackPrereqs = (
   "File::Spec" => 0,
   "IO::Handle" => 0,
   "IPC::Open3" => 0,
-  "Number::Tolerant" => 0,
   "Scalar::Util" => 0,
   "Test2::V0" => 0,
   "Test::More" => 0

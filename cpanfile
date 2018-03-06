@@ -1,12 +1,11 @@
 requires "Scalar::Util" => "0";
-requires "perl" => "5.008009";
+requires "perl" => "5.010";
 
 on 'test' => sub {
   requires "ExtUtils::MakeMaker" => "0";
   requires "File::Spec" => "0";
   requires "IO::Handle" => "0";
   requires "IPC::Open3" => "0";
-  requires "Number::Tolerant" => "0";
   requires "Test2::V0" => "0";
   requires "Test::More" => "0";
 };
