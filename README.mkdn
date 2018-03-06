@@ -281,9 +281,9 @@ behaviors.
 A wrapper class has the following characteristics.
 
 - It has the methods `DESTROY`, `AUTOLOAD` and `can`.
-- It may have other methods if the `-undef` and `-exists` options are specified, or
-it is [a stand alone class](#a-stand-alone-wrapper-class).
-- It may have a constructor if `-base` or `-new` is specified.
+- It will have other methods if the `-undef` and `-exists` options are specified. It may
+have other methods if it is [a stand alone class](#a-stand-alone-wrapper-class).
+- It will have a constructor if either of `-base` or `-new` is specified.
 
 ## Wrapper Class Limitations
 
@@ -366,6 +366,16 @@ Here's a comparison of this module and others on CPAN.
     - core dependencies only
     - no documentation
 - [Object::Accessor](https://metacpan.org/pod/Object::Accessor)
+    - core dependencies only
+    - only applies object paradigm to top level hash
+    - accessors may be lvalue subroutines
+    - accessing a non-existing element via an accessor
+    returns `undef` by default, but can optionally throw. Changing behavior
+    is done globally, so all objects are affected.
+    - accessors must be explicitly added.
+    - accessors may have aliases
+    - values may be validated
+    - invoking an accessor may trigger a callback
 
 # BUGS
 
