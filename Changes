@@ -2,6 +2,8 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.08      2018-02-27 10:57:06-05:00 America/New_York
+
   [API BREAKAGE]
 
     * Perl 5.10 is now the minimum version supported
