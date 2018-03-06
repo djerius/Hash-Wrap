@@ -943,6 +943,27 @@ throwing
 
 =item L<Object::Accessor>
 
+=over
+
+=item * core dependencies only
+
+=item * only applies object paradigm to top level hash
+
+=item * accessors may be lvalue subroutines
+
+=item * accessing a non-existing element via an accessor
+returns C<undef> by default, but can optionally throw. Changing behavior
+is done globally, so all objects are affected.
+
+=item * accessors must be explicitly added.
+
+=item * accessors may have aliases
+
+=item * values may be validated
+
+=item * invoking an accessor may trigger a callback
+
+=back
 
 
 =back
