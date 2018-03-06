@@ -754,12 +754,12 @@ It has the methods C<DESTROY>, C<AUTOLOAD> and C<can>.
 
 =item *
 
-It may have other methods if the C<-undef> and C<-exists> options are specified, or
-it is L<a stand alone class|/A stand alone Wrapper Class>.
+It will have other methods if the C<-undef> and C<-exists> options are specified. It may
+have other methods if it is L<a stand alone class|/A stand alone Wrapper Class>.
 
 =item *
 
-It may have a constructor if C<-base> or C<-new> is specified.
+It will have a constructor if either of C<-base> or C<-new> is specified.
 
 =back
 
