@@ -110,7 +110,7 @@ sub import {
             $args = {%$args};
         }
 
-	_croak( "cannot mix -base and -class" )
+        _croak( "cannot mix -base and -class" )
           if !!$args->{-base} && exists $args->{-class};
 
         $DEBUG = $ENV{HASH_WRAP_DEBUG} // delete $args->{-debug} ;
@@ -171,7 +171,7 @@ sub _build_class {
         autoload_attr   => '',
         validate_inline => 'exists $self->{\<<KEY>>}',
         validate_method => 'exists $self->{$key}',
-	meta => [  map { ( qq[q($_) => q($attr->{$_}),] ) } keys %$attr ],
+        meta => [  map { ( qq[q($_) => q($attr->{$_}),] ) } keys %$attr ],
     );
 
     if ( $attr->{-lvalue} ) {
@@ -688,7 +688,7 @@ new class will not have a constructor method.
 
 If not specified, the class name will be constructed based upon the
 options.  Do not rely upon this name to determine if an object is
-wrapped by B<Hash::Wrap>. 
+wrapped by B<Hash::Wrap>.
 
 =item C<-new> => I<boolean> | I<Perl Identifier>
 

@@ -229,7 +229,7 @@ behaviors.
 
     If not specified, the class name will be constructed based upon the
     options.  Do not rely upon this name to determine if an object is
-    wrapped by **Hash::Wrap**. 
+    wrapped by **Hash::Wrap**.
 
 - `-new` => _boolean_ | _Perl Identifier_
 
