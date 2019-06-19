@@ -16,6 +16,9 @@ our @EXPORT = qw[ wrap_hash ];
 our @CARP_NOT = qw( Hash::Wrap );
 our $DEBUG    = 0;
 
+# copied from Damian Conway's PPR: PerlIdentifier
+use constant PerlIdentifier => qr/([^\W\d]\w*+)/;
+
 my %REGISTRY;
 
 sub _croak {
@@ -131,9 +134,33 @@ sub import {
               if defined $name;
         }
 
+        # create accessors for known attributes
+        #   1. should also lock the hash
+        #   2. intended to support lvalue assignment without needing
+        #      to have an existing key in the hasha
+        # NOTE:  THIS DOES NOT YET WORK.
+        # The problem is that the accessor can't know it's being called to only return an lvalue,
+        # so checks for the hash key and errors out if it does not exist.  Use the Sentinel module
+        # to return a value which knows if it's being set or get.
+
+        if ( exists $args->{-attrs} ) {
+
+            $args->{-attrs} = [ $args->{-attrs} ]
+              if 'ARRAY' ne ref $args->{-attrs};
+
+            my $class = $args->{-class};
+
+            for my $attr ( @{ $args->{-attrs} } ) {
+                _croak( "attribute name '$attr' is not a legal Perl identifier\n" )
+                  if $attr !~ PerlIdentifier;
+
+                _generate_accessor( $class, $class, $attr );
+            }
+        }
+
         # clean out known attributes
         delete @{$args}{
-            qw[ -base -as -class -lvalue -undef -exists -defined -new -copy -clone ]
+            qw[ -base -as -class -lvalue -undef -exists -defined -new -copy -clone -attrs ]
         };
 
         if ( keys %$args ) {
@@ -142,9 +169,6 @@ sub import {
         }
     }
 }
-
-# copied from Damian Conway's PPR: PerlIdentifier
-use constant PerlIdentifier => qr/([^\W\d]\w*+)/;
 
 sub _build_class {
 
