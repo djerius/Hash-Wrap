@@ -45,7 +45,7 @@ sub _find_symbol {
 # this is called only if the method doesn't exist.
 sub _generate_accessor {
 
-    my ( $hash_class, $object, $class, $key ) = @_;
+    my ( $hash_class, $class, $key ) = @_;
 
     my %dict = (
         key   => $key,
@@ -75,7 +75,7 @@ sub _autoload {
         qq[Can't locate object method "$key" via package @{[ ref $object]}] )
       unless $REGISTRY{$hash_class}{validate}->( $object, $key );
 
-    _generate_accessor( $hash_class, $object, $class, $key );
+    _generate_accessor( $hash_class, $class, $key );
 }
 
 
