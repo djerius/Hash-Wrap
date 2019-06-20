@@ -2,6 +2,8 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+0.09      2019-06-20 16:57:19-04:00 America/New_York
+
   [ENHANCEMENT]
 
     * wrap_hash may now be called with no arguments, in which
