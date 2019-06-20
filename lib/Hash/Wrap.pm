@@ -343,9 +343,10 @@ sub _build_constructor {
 
     no warnings 'redefine';
 
-    sub <<NAME>> ($) {
+    sub <<NAME>> (;$) {
       my $class = <<CLASS>>
-      my $hash = shift;
+      my $hash = shift // {};
+
       if ( 'HASH' ne Scalar::Util::reftype($hash) ) {
          require Carp;
          Carp::croak( "argument to <<PACKAGE>>::<<NAME>> must be a hashref" )
@@ -525,7 +526,8 @@ returns the hash:
 
 The wrapper class has no constructor method, so the only way to create
 an object is via the C<wrap_hash> subroutine. (See L</WRAPPER CLASSES>
-for more about wrapper classes)
+for more about wrapper classes)  If C<wrap_hash> is called without
+arguments, it will create a hash for you.
 
 =head2 Advanced Usage
 

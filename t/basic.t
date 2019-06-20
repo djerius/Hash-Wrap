@@ -42,6 +42,16 @@ subtest 'default' => sub {
 
 };
 
+subtest 'no hash' => sub {
+
+    my $hash = wrap_hash;
+
+    $hash->{a} = 1;
+
+    is( $hash->a, 1, "set" );
+};
+
+
 use Hash::Wrap ( {
     -as   => 'return_copied',
     -copy => 1,
