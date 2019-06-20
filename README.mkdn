@@ -76,7 +76,8 @@ returns the hash:
 
 The wrapper class has no constructor method, so the only way to create
 an object is via the `wrap_hash` subroutine. (See ["WRAPPER CLASSES"](#wrapper-classes)
-for more about wrapper classes)
+for more about wrapper classes)  If `wrap_hash` is called without
+arguments, it will create a hash for you.
 
 ## Advanced Usage
 
@@ -377,20 +378,44 @@ Here's a comparison of this module and others on CPAN.
     - values may be validated
     - invoking an accessor may trigger a callback
 
-# BUGS
+# SUPPORT
 
-Please report any bugs or feature requests on the bugtracker website
-[https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap](https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap) or by email
-to [bug-Hash-Wrap@rt.cpan.org](mailto:bug-Hash-Wrap@rt.cpan.org).
+## Websites
 
-When submitting a bug or request, please include a test-file or a
-patch to an existing test-file that illustrates the bug or desired
-feature.
+The following websites have more information about this module, and may be of help to you. As always,
+in addition to those websites please use your favorite search engine to discover more resources.
 
-# SOURCE
+- MetaCPAN
 
-The development version is on github at [https://github.com/djerius/hash-wrap](https://github.com/djerius/hash-wrap)
-and may be cloned from [git://github.com/djerius/hash-wrap.git](git://github.com/djerius/hash-wrap.git)
+    A modern, open-source CPAN search engine, useful to view POD in HTML format.
+
+    [https://metacpan.org/release/Hash-Wrap](https://metacpan.org/release/Hash-Wrap)
+
+- RT: CPAN's Bug Tracker
+
+    The RT ( Request Tracker ) website is the default bug/issue tracking system for CPAN.
+
+    [https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap](https://rt.cpan.org/Public/Dist/Display.html?Name=Hash-Wrap)
+
+## Email
+
+You can email the author of this module at `DJERIUS at cpan.org` asking for help with any problems you have.
+
+## Bugs / Feature Requests
+
+Please report any bugs or feature requests by email to `bug-hash-wrap at rt.cpan.org`, or through
+the web interface at [https://rt.cpan.org/Public/Bug/Report.html?Queue=Hash-Wrap](https://rt.cpan.org/Public/Bug/Report.html?Queue=Hash-Wrap). You will be automatically notified of any
+progress on the request by the system.
+
+## Source Code
+
+The code is open to the world, and available for you to hack on. Please feel free to browse it and play
+with it, or whatever. If you want to contribute patches, please send me a diff or prod me to pull
+from your repository :)
+
+[https://gitlab.com/djerius/hash-wrap](https://gitlab.com/djerius/hash-wrap)
+
+    https://gitlab.com/djerius/hash-wrap.git
 
 # AUTHOR
 
