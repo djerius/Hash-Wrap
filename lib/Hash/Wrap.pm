@@ -9,7 +9,7 @@ use warnings;
 
 use Scalar::Util qw[ blessed reftype ];
 use Digest::MD5;
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 our @EXPORT = qw[ wrap_hash ];
 

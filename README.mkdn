@@ -4,7 +4,7 @@ Hash::Wrap - create on-the-fly objects from hashes
 
 # VERSION
 
-version 0.10
+version 0.11
 
 # SYNOPSIS
 
