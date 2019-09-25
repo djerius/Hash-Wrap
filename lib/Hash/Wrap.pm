@@ -262,7 +262,7 @@ sub can {
     ## no critic (ProhibitNoStrict)
     no strict 'refs';
     return *{$method}{CODE}
-      || Hash::Wrap::_generate_accessor( q[<<CLASS>>], $self, $method, $key );
+      || Hash::Wrap::_generate_accessor( q[<<CLASS>>], $class, $key );
 }
 
 1;
