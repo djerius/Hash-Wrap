@@ -133,7 +133,7 @@ sub import {
 
         # clean out known attributes
         delete @{$args}{
-            qw[ -base -as -class -lvalue -undef -exists -defined -new -copy -clone ]
+            qw[ -base -as -class -lvalue -undef -exists -defined -new -copy -clone -immutable -lockkeys ]
         };
 
         if ( keys %$args ) {
@@ -171,6 +171,7 @@ sub _build_class {
         autoload_attr   => '',
         validate_inline => 'exists $self->{\<<KEY>>}',
         validate_method => 'exists $self->{$key}',
+        set             => '$self->{q[\<<KEY>>]} = $_[0] if @_;',
         meta => [  map { ( qq[q($_) => q($attr->{$_}),] ) } keys %$attr ],
     );
 
@@ -199,6 +200,10 @@ sub _build_class {
     if ( $attr->{-defined} ) {
         $dict{defined} = $attr->{-defined} =~ PerlIdentifier ? $1 : 'defined';
         push @{ $dict{body} }, q[ sub <<DEFINED>> { defined $_[0]->{$_[1] } } ];
+    }
+
+    if ( $attr->{-immutable} ) {
+        $dict{set} = 'Carp::croak( q[Modification of a read-only value attempted]) if @_;'
     }
 
     my $class_template = <<'END';
@@ -231,7 +236,7 @@ our $accessor_template = q[
       Carp::croak( qq[Can't locate object method "\<<KEY>>" via package @{[ Scalar::Util::blessed( $self ) ]}] );
     }
 
-   $self->{q[\<<KEY>>]} = $_[0] if @_;
+   <<SET>>
 
    return $self->{q[\<<KEY>>]};
   }
@@ -335,6 +340,28 @@ sub _build_constructor {
         }
     };
 
+    $dict{lock} = do {
+        if ( $args->{-immutable} ) {
+            push @{ $dict{use} }, q[use Hash::Util ();];
+            'Hash::Util::lock_hash(%$hash)'
+        }
+        elsif ( defined $args->{-lockkeys} ) {
+
+            if ( 'ARRAY' eq ref $args->{-lockkeys} ) {
+                _croak( "-lockkeys: attribute name ($_) is not a legal Perl identifier" )
+                  for grep { $_ !~ PerlIdentifier } @{ $args->{-lockkeys} };
+
+                push @{ $dict{use} }, q[use Hash::Util ();];
+                'Hash::Util::lock_keys_plus(%$hash, qw{ ' . join( ' ', @{ $args->{-lockkeys} } ) . ' });'
+            }
+            elsif ( $args->{-lockkeys} ) {
+                push @{ $dict{use} }, q[use Hash::Util ();];
+                'Hash::Util::lock_keys(%$hash)'
+            }
+        }
+    };
+
+
     #<<< no tidy
     my $code = q[
     package <<PACKAGE>>;
@@ -353,6 +380,7 @@ sub _build_constructor {
       }
       <<COPY>>
       bless $hash, $class;
+      <<LOCK>>
     }
     1;
     ];
@@ -485,8 +513,8 @@ With C<Hash::Wrap>:
   print $obj->a;
 
 Elements can be added or removed to the object and accessors will
-track them.  If the object should be immutable, use the lock routines
-in L<Hash::Util> on it.
+track them.  The object may be made immutable, or may have a restricted
+set of attributes.
 
 There are many similar modules on CPAN (see L<SEE ALSO> for comparisons).
 
@@ -642,6 +670,17 @@ is used. If a coderef, it will be called as
    $clone = coderef->( $hash )
 
 By default, the object uses the hash directly.
+
+=item C<--immutable> => I<boolean>
+
+The object's attributes and values are locked and may not be altered. Note that this
+locks the underlying hash.
+
+=item C<--lockkeys> => I<boolean> | I<arrayref>
+
+If the value is I<true>, the object's attributes are restricted to the existing keys in the hash.
+If it is an array reference, it specifies which attributes are allowed, I<in addition to existing attributes>.
+The attribute's values are not locked.  Note that this locks the underlying hash.
 
 =back
 
