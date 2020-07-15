@@ -19,17 +19,14 @@ our $DEBUG    = 0;
 my %REGISTRY;
 
 sub _croak {
-
     require Carp;
     Carp::croak( @_ );
 }
 
 sub _find_symbol {
-
     my ( $package, $symbol, $reftype ) = @_;
 
     no strict 'refs';    ## no critic (ProhibitNoStrict)
-
     my $candidate = *{"$package\::$symbol"}{SCALAR};
 
     return $$candidate
@@ -44,7 +41,6 @@ sub _find_symbol {
 
 # this is called only if the method doesn't exist.
 sub _generate_accessor {
-
     my ( $hash_class, $class, $key ) = @_;
 
     my %dict = (
@@ -53,9 +49,7 @@ sub _generate_accessor {
     );
 
     my $code = $REGISTRY{$hash_class}{accessor_template};
-
     my $coderef = _compile_from_tpl( \$code, \%dict );
-
     _croak_about_code( \$code, 'accessor' )
       if $@;
 
@@ -63,7 +57,6 @@ sub _generate_accessor {
 }
 
 sub _autoload {
-
     my ( $hash_class, $method, $object ) = @_;
 
     my ( $class, $key ) = $method =~ /(.*)::(.*)/;
@@ -80,17 +73,13 @@ sub _autoload {
 
 
 sub import {
-
     shift;
-
     my $caller = caller;
 
     my @imports = @_;
-
     push @imports, @EXPORT unless @imports;
 
     for my $args ( @imports ) {
-
         if ( !ref $args ) {
             _croak( "$args is not exported by ", __PACKAGE__ )
               unless grep { /$args/ } @EXPORT;
@@ -147,7 +136,6 @@ sub import {
 use constant PerlIdentifier => qr/([^\W\d]\w*+)/;
 
 sub _build_class {
-
     my $attr = shift;
 
     if ( !defined $attr->{-class} ) {
@@ -176,7 +164,6 @@ sub _build_class {
     );
 
     if ( $attr->{-lvalue} ) {
-
         if ( $] lt '5.016000' ) {
             _croak( "lvalue accessors require Perl 5.16 or later" )
               if $attr->{-lvalue} < 0;
@@ -254,7 +241,6 @@ sub AUTOLOAD <<AUTOLOAD_ATTR>> {
 sub DESTROY { }
 
 sub can {
-
     my ( $self, $key ) = @_;
 
     my $class = Scalar::Util::blessed( $self );
@@ -294,7 +280,6 @@ END
 }
 
 sub _build_constructor {
-
     my ( $package, $name, $args ) = @_;
 
     # closure for user provided clone sub
@@ -310,7 +295,6 @@ sub _build_constructor {
     );
 
     $dict{class} = do {
-
         if ( $args->{-method} ) {
             'shift;';
         }
@@ -321,14 +305,11 @@ sub _build_constructor {
     };
 
     $dict{copy} = do {
-
         if ( $args->{-copy} ) {
             '$hash = { %{ $hash } };';
         }
 
         elsif ( exists $args->{-clone} ) {
-
-
             if ( 'CODE' eq ref $args->{-clone} ) {
                 $clone = $args->{-clone};
                 '$hash = $clone->($hash);';
@@ -394,20 +375,14 @@ sub _build_constructor {
 }
 
 sub _croak_about_code {
-
     my ( $code, $what ) = @_;
-
     my $error = $@;
-
     _line_number_code( $code );
-
     _croak( qq[error compiling $what: $error\n$$code] );
 }
 
 sub _line_number_code {
-
     my ( $code ) = @_;
-
     my $space = length( $$code =~ tr/\n// );
     my $line  = 0;
     $$code =~ s/^/sprintf "%${space}d: ", ++$line/emg;
@@ -430,9 +405,7 @@ sub _compile_from_tpl {
 }
 
 sub _interpolate {
-
     my ( $tpl, $dict, $work ) = @_;
-
     $work = { loop => {} } unless defined $work;
 
     $$tpl =~ s{(\\)?\<\<(\w+)\>\>
@@ -444,7 +417,6 @@ sub _interpolate {
                     my $key = lc $2;
                     my $v = $dict->{$key};
                     if ( defined $v ) {
-
                         $v = join( "\n", @$v )
                           if 'ARRAY' eq ref $v;
 
@@ -461,7 +433,6 @@ sub _interpolate {
               }gex;
     return;
 }
-
 
 1;
 
