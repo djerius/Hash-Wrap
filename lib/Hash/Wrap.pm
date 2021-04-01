@@ -111,11 +111,11 @@ sub import {
 
             $args->{-class} = $caller;
             $args->{-new} = 1 unless !!$args->{-new};
-            _build_class( $args );
+            _build_class( $caller, $name, $args );
         }
 
         else {
-            _build_class( $args );
+            _build_class( $caller, $name, $args );
             _build_constructor( $caller, $name, $args )
               if defined $name;
         }
@@ -136,7 +136,7 @@ sub import {
 use constant PerlIdentifier => qr/([^\W\d]\w*+)/;
 
 sub _build_class {
-    my $attr = shift;
+    my ( $caller, $name, $attr ) = @_;
 
     if ( !defined $attr->{-class} ) {
 
@@ -146,6 +146,10 @@ sub _build_class {
             } sort keys %$attr;
 
         $attr->{-class} = join '::', 'Hash::Wrap::Class', Digest::MD5::md5_hex( @class );
+    }
+
+    elsif ( $attr->{-class} eq '-caller' ) {
+      $attr->{-class} = $caller . '::' . $name;
     }
 
     my $class = $attr->{-class};
@@ -549,8 +553,16 @@ except via the imported constructor subroutine:
   print $h->a, "\n";             # prints 1
   $h->isa( 'My::Class' );        # returns true
 
+or, if you want it to reflect the current package, try this:
+
+  package Foo;
+  use Hash::Wrap { -class => '-caller', -as => 'wrapit' };
+
+  my $h = wrapit { a => 1 };
+  $h->isa( 'Foo::wrapit' );  # returns true
+
 Again, the wrapper class has no constructor method, so the only way to create
-an object is via the C<wrap_hash> subroutine.
+an object is via the generated subroutine.
 
 =head3 The Wrapper Class needs its own class constructor method
 
@@ -697,6 +709,14 @@ not be used in conjunction with C<-class>.  See L</A stand alone Wrapper Class>.
 A class with the given name will be created and new objects will be
 blessed into the specified class by the constructor subroutine.  The
 new class will not have a constructor method.
+
+If I<class name> is the string C<-caller>, then the class name is
+set to the fully qualified name of the constructor, e.g.
+
+  package Foo;
+  use Hash::Wrap { -class => '-caller', -as => 'wrap_it' };
+
+results in a class name of C<Foo::wrap_it>.
 
 If not specified, the class name will be constructed based upon the
 options.  Do not rely upon this name to determine if an object is
