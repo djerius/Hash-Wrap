@@ -836,7 +836,7 @@ there's no way to access that hash entry.  One way around this is to
 use a custom clone subroutine which modifies the keys so they are
 legal method names.  The user can directly insert a non-method-name
 key into the C<Hash::Wrap> object after it is created, and those still
-have a key that's not avaliable via a method, but there's no cure for
+have a key that's not available via a method, but there's no cure for
 that.
 
 

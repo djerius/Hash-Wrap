@@ -103,7 +103,7 @@ is( My::Test::No::Sub::Class->new( { } )->b, undef, "standalone class" );
 }
 
 ref_ok( *My::Test::ClassName::wrapit{CODE}, 'CODE', "standalone class" );
-isa_ok( My::Test::ClassName::wrapit(), [ 'My::Test::ClassName::wrapit' ], '-class => -caller' ); 
+isa_ok( My::Test::ClassName::wrapit(), [ 'My::Test::ClassName::wrapit' ], '-class => -caller' );
 
 SKIP: {
     skip( ":lvalue support requires perl 5.16 or later" )
