@@ -807,6 +807,19 @@ Accessors for deleted elements are not removed.  The class's C<can>
 method will return C<undef> for them, but they are still available in
 the class's stash.
 
+=head1 EXAMPLES
+
+=head1 Existing keys are not compatible with method names
+
+If a hash key contains characters that aren't legal in method names,
+there's no way to access that hash entry.  One way around this is to
+use a custom clone subroutine which modifies the keys so they are
+legal method names.  The user can directly insert a non-method-name
+key into the C<Hash::Wrap> object after it is created, and those still
+have a key that's not avaliable via a method, but there's no cure for
+that.
+
+
 
 =head1 SEE ALSO
 
